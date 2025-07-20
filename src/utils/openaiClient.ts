@@ -238,3 +238,139 @@ export async function* callOpenAIStream(
     }
   }
 }
+
+/**
+ * Stream OpenAI responses with a callback function
+ */
+export async function streamOpenAI(
+  messages: Array<{role: string; content: string}>,
+  onChunk: (chunk: string) => void,
+  options: {
+    temperature?: number;
+    max_tokens?: number;
+    command?: string;
+    batchId?: string;
+    sessionId?: string;
+  } = {}
+): Promise<void> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY not found in environment variables');
+  }
+
+  // Count input tokens
+  const inputTokens = tokenCounter.countChatTokens(messages as OpenAIMessage[]);
+  const startTime = Date.now();
+  let fullResponse = '';
+
+  const payload = {
+    model: 'gpt-4o',
+    messages,
+    temperature: options.temperature || 0.7,
+    max_tokens: options.max_tokens || 4000,
+    stream: true,
+  };
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorData);
+      } catch {
+        parsedError = errorData;
+      }
+      
+      // Record failed usage
+      await dbManager.recordUsage({
+        command: options.command || 'chat',
+        inputTokens,
+        outputTokens: 0,
+        success: false,
+        errorMessage: `${response.status}: ${response.statusText}`,
+        durationMs: Date.now() - startTime,
+        batchId: options.batchId,
+        sessionId: options.sessionId
+      });
+      
+      throw new OpenAIError(response.status, response.statusText, parsedError);
+    }
+
+    if (!response.body) throw new Error('No response body');
+    
+    // Convert node-fetch response to readable stream
+    const stream = Readable.from(response.body as any);
+    let buffer = '';
+
+    for await (const chunk of stream) {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            // Record successful usage
+            const outputTokens = tokenCounter.count(fullResponse);
+            await dbManager.recordUsage({
+              command: options.command || 'chat',
+              inputTokens,
+              outputTokens,
+              success: true,
+              durationMs: Date.now() - startTime,
+              batchId: options.batchId,
+              sessionId: options.sessionId,
+              metadata: {
+                model: 'gpt-4o',
+                stream: true
+              }
+            });
+            return;
+          }
+          
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content;
+            if (content) {
+              fullResponse += content;
+              onChunk(content);
+            }
+          } catch {
+            // Ignore parsing errors for incomplete chunks
+          }
+        }
+      }
+    }
+  } catch (error) {
+    if (error instanceof OpenAIError) {
+      throw error;
+    }
+    
+    // Record error if not already recorded
+    if (!(error instanceof Error && error.message?.includes('OpenAI API Error'))) {
+      await dbManager.recordUsage({
+        command: options.command || 'chat',
+        inputTokens,
+        outputTokens: 0,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        durationMs: Date.now() - startTime,
+        batchId: options.batchId,
+        sessionId: options.sessionId
+      });
+    }
+    
+    throw new Error(`Failed to stream from OpenAI API: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}

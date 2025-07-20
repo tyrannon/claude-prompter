@@ -18,6 +18,7 @@ import { createTemplateCommand } from './commands/template';
 import { createHistoryCommand } from './commands/history';
 import { createBatchCommand } from './commands/batch';
 import { createUsageCommand } from './commands/usage';
+import { createChatCommand } from './commands/chat';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -192,15 +193,7 @@ program.addCommand(createTemplateCommand());
 program.addCommand(createHistoryCommand());
 program.addCommand(createBatchCommand());
 program.addCommand(createUsageCommand());
-
-program
-  .command('chat')
-  .description('Start an interactive chat session with GPT-4o')
-  .option('-s, --system <system>', 'System prompt for the chat session')
-  .action(async (_options) => {
-    console.log(chalk.cyan('🚧 Interactive chat mode coming soon!'));
-    console.log(chalk.gray('For now, use: claude-prompter prompt -m "your message" --send'));
-  });
+program.addCommand(createChatCommand());
 
 program
   .command('config')
