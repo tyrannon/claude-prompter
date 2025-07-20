@@ -21,3 +21,10 @@ jest.setTimeout(10000);
 afterEach(() => {
   jest.clearAllMocks();
 });
+
+// Basic setup test
+describe('Jest Setup', () => {
+  it('should load test environment', () => {
+    expect(process.env.NODE_ENV).toBe('test');
+  });
+});
