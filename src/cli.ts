@@ -19,6 +19,7 @@ import { createHistoryCommand } from './commands/history';
 import { createBatchCommand } from './commands/batch';
 import { createUsageCommand } from './commands/usage';
 import { createChatCommand } from './commands/chat';
+import { createLearnCommand } from './commands/learn';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -194,6 +195,7 @@ program.addCommand(createHistoryCommand());
 program.addCommand(createBatchCommand());
 program.addCommand(createUsageCommand());
 program.addCommand(createChatCommand());
+program.addCommand(createLearnCommand());
 
 program
   .command('config')
