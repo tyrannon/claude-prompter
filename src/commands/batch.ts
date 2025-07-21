@@ -8,6 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { callOpenAI } from '../utils/openaiClient';
 import { TokenCounter } from '../utils/tokenCounter';
 import { UsageManager } from '../data/UsageManager';
+import { ClaudePrompterError, ErrorCode, ErrorHandler, ErrorFactory } from '../utils/errorHandler';
+import { Logger } from '../utils/logger';
 
 interface BatchPrompt {
   id?: string;
@@ -47,6 +49,8 @@ interface BatchSummary {
   results: BatchResult[];
 }
 
+const logger = new Logger('BatchCommand');
+
 export function createBatchCommand() {
   const batch = new Command('batch')
     .description('Process multiple prompts from a file with cost tracking')
@@ -60,15 +64,21 @@ export function createBatchCommand() {
     .option('--delay <ms>', 'Delay between requests (ms)', '0')
     .action(async (options) => {
       try {
+        logger.info('Starting batch processing', { options });
+        
         const tokenCounter = new TokenCounter();
         const usageManager = new UsageManager();
         
         // Check for existing limits
         const limitCheck = await usageManager.checkLimits();
         if (limitCheck.exceeded) {
-          console.log(chalk.red(`\n❌ ${limitCheck.message}`));
-          console.log(chalk.yellow('Use: claude-prompter usage --limit <amount> to adjust limits'));
-          return;
+          throw new ClaudePrompterError(
+            ErrorCode.USAGE_LIMIT_EXCEEDED,
+            limitCheck.message || 'Usage limit exceeded',
+            {
+              context: { limitCheck }
+            }
+          );
         }
         
         // Handle resume
@@ -77,19 +87,30 @@ export function createBatchCommand() {
           return;
         }
         
-        // Load prompts
+        // Load and validate prompts
         const prompts = await loadPrompts(options.file, options.template);
         if (!prompts.length) {
-          console.log(chalk.red('No prompts found to process'));
-          return;
+          throw new ClaudePrompterError(
+            ErrorCode.BATCH_INVALID_FORMAT,
+            'No valid prompts found to process',
+            {
+              context: { 
+                file: options.file, 
+                template: options.template,
+                promptCount: prompts.length
+              }
+            }
+          );
         }
         
         // Generate batch ID
         const batchId = uuidv4();
+        logger.info('Generated batch ID', { batchId, promptCount: prompts.length });
         
         // Estimate cost
         const estimate = await estimateBatchCost(prompts, tokenCounter);
         
+        // Display analysis
         console.log(chalk.cyan('\n📊 Batch Processing Analysis'));
         console.log(chalk.gray('─'.repeat(40)));
         console.log(`${chalk.white('Batch ID:')} ${chalk.cyan(batchId.slice(0, 8))}`);
@@ -103,45 +124,63 @@ export function createBatchCommand() {
           return;
         }
         
-        // Check cost limit
+        // Validate cost limit
         const maxCost = parseFloat(options.maxCost);
+        if (isNaN(maxCost) || maxCost <= 0) {
+          throw new ClaudePrompterError(
+            ErrorCode.VALIDATION_ERROR,
+            'Invalid cost limit. Must be a positive number.',
+            {
+              context: { maxCost: options.maxCost }
+            }
+          );
+        }
+        
         if (estimate.cost > maxCost) {
-          console.log(chalk.red(`\n❌ Estimated cost ($${estimate.cost.toFixed(4)}) exceeds limit ($${maxCost.toFixed(2)})`));
-          const { proceed } = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'proceed',
-            message: 'Proceed anyway?',
-            default: false
-          }]);
-          if (!proceed) return;
+          const shouldProceed = await confirmCostOverrun(estimate.cost, maxCost);
+          if (!shouldProceed) {
+            throw ErrorFactory.batchCostLimitExceeded(estimate.cost, maxCost);
+          }
         }
         
         // Confirm execution
-        const { confirmed } = await inquirer.prompt([{
-          type: 'confirm',
-          name: 'confirmed',
-          message: `Process ${prompts.length} prompts?`,
-          default: true
-        }]);
-        
-        if (!confirmed) {
+        const shouldProceed = await confirmBatchExecution(prompts.length, estimate.cost);
+        if (!shouldProceed) {
+          logger.info('Batch processing cancelled by user');
           console.log(chalk.yellow('Batch cancelled'));
           return;
         }
         
-        // Process batch
+        // Validate parallel setting
+        const parallelCount = Math.max(1, Math.min(5, parseInt(options.parallel) || 1));
+        if (parallelCount !== parseInt(options.parallel)) {
+          logger.warn('Parallel count adjusted to valid range', {
+            requested: options.parallel,
+            actual: parallelCount
+          });
+        }
+        
+        // Process batch with error handling
         const summary = await processBatch(prompts, {
           batchId,
-          parallel: parseInt(options.parallel),
-          delay: parseInt(options.delay),
+          parallel: parallelCount,
+          delay: parseInt(options.delay) || 0,
           outputFile: options.output
         });
         
         // Display results
         await displayBatchSummary(summary);
         
+        logger.info('Batch processing completed successfully', {
+          batchId,
+          totalPrompts: summary.totalPrompts,
+          successful: summary.successful,
+          failed: summary.failed,
+          totalCost: summary.totalCost
+        });
+        
       } catch (error) {
-        console.error(chalk.red('Batch processing failed:'), error instanceof Error ? error.message : 'Unknown error');
+        ErrorHandler.handle(error);
         process.exit(1);
       }
     });
@@ -149,44 +188,190 @@ export function createBatchCommand() {
   return batch;
 }
 
+/**
+ * Helper function to confirm cost overrun
+ */
+async function confirmCostOverrun(estimatedCost: number, maxCost: number): Promise<boolean> {
+  console.log(chalk.red(`\n❌ Estimated cost ($${estimatedCost.toFixed(4)}) exceeds limit ($${maxCost.toFixed(2)})`));
+  
+  const { proceed } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'proceed',
+    message: 'Proceed anyway?',
+    default: false
+  }]);
+  
+  return proceed;
+}
+
+/**
+ * Helper function to confirm batch execution
+ */
+async function confirmBatchExecution(promptCount: number, estimatedCost: number): Promise<boolean> {
+  const { confirmed } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'confirmed',
+    message: `Process ${promptCount} prompts? (Est. cost: $${estimatedCost.toFixed(4)})`,
+    default: true
+  }]);
+  
+  return confirmed;
+}
+
 async function loadPrompts(filePath?: string, template?: string): Promise<BatchPrompt[]> {
-  if (template) {
-    return await loadTemplate(template);
-  }
-  
-  if (!filePath) {
-    throw new Error('Either --file or --template must be provided');
-  }
-  
-  if (!await fs.pathExists(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
-  }
-  
-  const content = await fs.readFile(filePath, 'utf8');
-  const ext = path.extname(filePath).toLowerCase();
-  
-  let prompts: BatchPrompt[];
-  
-  if (ext === '.json') {
-    const parsed = JSON.parse(content);
-    prompts = Array.isArray(parsed) ? parsed : [parsed];
-  } else {
-    // Treat as text file with one prompt per line
-    prompts = content
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('#'))
-      .map(message => ({ message }));
-  }
-  
-  // Add IDs if missing
-  prompts.forEach((prompt, index) => {
-    if (!prompt.id) {
-      prompt.id = `prompt-${index + 1}`;
+  return ErrorHandler.withErrorHandling(async () => {
+    if (template) {
+      logger.debug('Loading template prompts', { template });
+      return await loadTemplate(template);
     }
-  });
-  
-  return prompts;
+    
+    if (!filePath) {
+      throw new ClaudePrompterError(
+        ErrorCode.VALIDATION_ERROR,
+        'Either --file or --template must be provided'
+      );
+    }
+    
+    // Validate file exists and is accessible
+    if (!await fs.pathExists(filePath)) {
+      throw ErrorFactory.fileNotFound(filePath);
+    }
+    
+    // Check file permissions
+    try {
+      await fs.access(filePath, fs.constants.R_OK);
+    } catch (error) {
+      throw new ClaudePrompterError(
+        ErrorCode.FILE_ACCESS_DENIED,
+        `Cannot read file: ${filePath}`,
+        {
+          context: { filePath, error: error instanceof Error ? error.message : String(error) }
+        }
+      );
+    }
+    
+    logger.debug('Loading prompts from file', { filePath });
+    
+    let content: string;
+    try {
+      content = await fs.readFile(filePath, 'utf8');
+    } catch (error) {
+      throw new ClaudePrompterError(
+        ErrorCode.FILE_ACCESS_DENIED,
+        `Failed to read file: ${filePath}`,
+        {
+          context: { filePath, error: error instanceof Error ? error.message : String(error) }
+        }
+      );
+    }
+    
+    if (!content.trim()) {
+      throw new ClaudePrompterError(
+        ErrorCode.BATCH_INVALID_FORMAT,
+        'File is empty or contains no valid content',
+        {
+          context: { filePath }
+        }
+      );
+    }
+    
+    const ext = path.extname(filePath).toLowerCase();
+    let prompts: BatchPrompt[];
+    
+    try {
+      if (ext === '.json') {
+        const parsed = JSON.parse(content);
+        
+        if (Array.isArray(parsed)) {
+          prompts = parsed;
+        } else if (parsed && typeof parsed === 'object' && parsed.message) {
+          prompts = [parsed];
+        } else {
+          throw new ClaudePrompterError(
+            ErrorCode.BATCH_INVALID_FORMAT,
+            'JSON file must contain an array of prompt objects or a single prompt object with a "message" field',
+            {
+              context: { filePath, structure: typeof parsed }
+            }
+          );
+        }
+      } else {
+        // Treat as text file with one prompt per line
+        prompts = content
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line && !line.startsWith('#'))
+          .map(message => ({ message }));
+      }
+    } catch (error) {
+      if (error instanceof ClaudePrompterError) {
+        throw error;
+      }
+      
+      throw ErrorFactory.invalidBatchFormat(
+        `Failed to parse ${ext} file: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    
+    // Validate prompts
+    if (!Array.isArray(prompts) || prompts.length === 0) {
+      throw new ClaudePrompterError(
+        ErrorCode.BATCH_INVALID_FORMAT,
+        'No valid prompts found in file',
+        {
+          context: { filePath, promptCount: prompts?.length || 0 }
+        }
+      );
+    }
+    
+    // Validate and sanitize each prompt
+    const validPrompts: BatchPrompt[] = [];
+    for (const [index, prompt] of prompts.entries()) {
+      if (!prompt || typeof prompt !== 'object') {
+        logger.warn('Skipping invalid prompt', { index, prompt });
+        continue;
+      }
+      
+      if (!prompt.message || typeof prompt.message !== 'string') {
+        logger.warn('Skipping prompt without message', { index, prompt });
+        continue;
+      }
+      
+      // Add ID if missing
+      if (!prompt.id) {
+        prompt.id = `prompt-${index + 1}`;
+      }
+      
+      // Validate message length
+      if (prompt.message.length > 50000) {
+        logger.warn('Truncating very long prompt', { 
+          index, 
+          originalLength: prompt.message.length 
+        });
+        prompt.message = prompt.message.substring(0, 50000);
+      }
+      
+      validPrompts.push(prompt);
+    }
+    
+    if (validPrompts.length === 0) {
+      throw new ClaudePrompterError(
+        ErrorCode.BATCH_INVALID_FORMAT,
+        'No valid prompts found after validation',
+        {
+          context: { filePath, originalCount: prompts.length }
+        }
+      );
+    }
+    
+    logger.info('Successfully loaded prompts', {
+      filePath,
+      originalCount: prompts.length,
+      validCount: validPrompts.length
+    });
+    
+    return validPrompts;
+  }, { operation: 'loadPrompts', filePath, template });
 }
 
 async function loadTemplate(templateName: string): Promise<BatchPrompt[]> {

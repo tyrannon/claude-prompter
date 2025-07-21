@@ -6,13 +6,17 @@ interface ProgressOverviewProps {
   experienceLevel: string;
   recentTopics: string[];
   languages: string[];
+  totalQueries: number;
+  successRate: number;
 }
 
 const ProgressOverview: React.FC<ProgressOverviewProps> = ({
   sessionCount,
   experienceLevel,
   recentTopics,
-  languages
+  languages,
+  totalQueries,
+  successRate
 }) => {
   // Calculate progress percentage based on experience level
   const getProgressPercentage = (level: string): number => {
@@ -79,6 +83,14 @@ const ProgressOverview: React.FC<ProgressOverviewProps> = ({
       </div>
 
       <div className="stats-grid">
+        <div className="stat-item">
+          <div className="stat-number">{totalQueries}</div>
+          <div className="stat-label">Total Queries</div>
+          <div className="stat-detail">
+            <span className="success-rate">{successRate.toFixed(1)}% success</span>
+          </div>
+        </div>
+
         <div className="stat-item">
           <div className="stat-number">{recentTopics.length}</div>
           <div className="stat-label">Recent Topics</div>

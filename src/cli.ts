@@ -26,6 +26,7 @@ import { createLearnCommand } from './commands/learn';
 import { createHandoffCommand } from './commands/handoff';
 import { createContextCommand } from './commands/context';
 import { createPlanCommand } from './commands/plan';
+import { createGuiCommand } from './commands/gui';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -311,6 +312,7 @@ program.addCommand(createLearnCommand());
 program.addCommand(createHandoffCommand());
 program.addCommand(createContextCommand());
 program.addCommand(createPlanCommand());
+program.addCommand(createGuiCommand());
 
 program
   .command('config')

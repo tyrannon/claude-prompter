@@ -24,6 +24,6 @@ module.exports = {
     }
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(chalk|inquirer|ora|boxen|node-fetch)/)'
+    'node_modules/(?!(chalk|inquirer|ora|boxen|node-fetch|ansi-styles|supports-color)/)'
   ]
 };

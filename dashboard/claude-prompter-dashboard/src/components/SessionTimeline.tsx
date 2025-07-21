@@ -3,23 +3,37 @@ import './SessionTimeline.css';
 
 interface SessionTimelineProps {
   sessionCount: number;
+  recentSessions: Array<{
+    id: number;
+    date: string;
+    topic: string;
+    intensity: number;
+  }>;
 }
 
-const SessionTimeline: React.FC<SessionTimelineProps> = ({ sessionCount }) => {
-  // Generate mock timeline data
-  const timelineData = Array.from({ length: Math.min(sessionCount, 10) }, (_, index) => {
-    const daysAgo = Math.floor(Math.random() * 30);
-    const date = new Date();
-    date.setDate(date.getDate() - daysAgo);
-    
-    return {
-      id: index + 1,
-      date: date.toLocaleDateString(),
-      topic: ['React Hooks', 'Database Design', 'Authentication', 'API Development', 'Testing', 'Deployment'][Math.floor(Math.random() * 6)],
-      sessionNumber: sessionCount - index,
-      intensity: Math.floor(Math.random() * 3) + 1 // 1-3 intensity levels
-    };
-  }).reverse();
+const SessionTimeline: React.FC<SessionTimelineProps> = ({ sessionCount, recentSessions }) => {
+  // Use provided recent sessions data or fallback to mock data
+  const timelineData = recentSessions.length > 0 
+    ? recentSessions.slice(0, 10).map(session => ({
+        id: session.id,
+        date: new Date(session.date).toLocaleDateString(),
+        topic: session.topic,
+        sessionNumber: session.id,
+        intensity: session.intensity
+      }))
+    : Array.from({ length: Math.min(sessionCount, 10) }, (_, index) => {
+        const daysAgo = Math.floor(Math.random() * 30);
+        const date = new Date();
+        date.setDate(date.getDate() - daysAgo);
+        
+        return {
+          id: index + 1,
+          date: date.toLocaleDateString(),
+          topic: ['React Hooks', 'Database Design', 'Authentication', 'API Development', 'Testing', 'Deployment'][Math.floor(Math.random() * 6)],
+          sessionNumber: sessionCount - index,
+          intensity: Math.floor(Math.random() * 3) + 1 // 1-3 intensity levels
+        };
+      }).reverse();
 
   return (
     <div className="session-timeline">

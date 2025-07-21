@@ -1,0 +1,42 @@
+[
+  {
+    "id": "architecture-review",
+    "message": "Review the current claude-prompter architecture for scalability and maintainability issues. Focus on the batch processing system, usage tracking, and CLI command structure.",
+    "systemPrompt": "You are a senior software architect with expertise in CLI tools, TypeScript, and AI workflow systems. Provide specific, actionable recommendations."
+  },
+  {
+    "id": "performance-optimization",
+    "message": "Analyze claude-prompter's performance bottlenecks, especially in batch processing, token counting, and database operations. Suggest concrete optimizations.",
+    "systemPrompt": "You are a performance engineering expert specializing in Node.js applications and CLI tools. Focus on measurable improvements."
+  },
+  {
+    "id": "error-handling-audit",
+    "message": "Audit claude-prompter's error handling across all commands, particularly batch processing failures, API errors, and file system operations. Identify gaps and improvements.",
+    "systemPrompt": "You are a reliability engineer expert in error handling, logging, and graceful degradation in TypeScript applications."
+  },
+  {
+    "id": "user-experience-enhancement",
+    "message": "Evaluate claude-prompter's user experience from CLI interface design, command discoverability, help messages, and output formatting. Suggest UX improvements.",
+    "systemPrompt": "You are a CLI UX expert with deep knowledge of developer tools and command-line interface best practices."
+  },
+  {
+    "id": "testing-strategy",
+    "message": "Design a comprehensive testing strategy for claude-prompter including unit tests, integration tests, and CLI command testing. Focus on batch processing and cost tracking features.",
+    "systemPrompt": "You are a testing expert specializing in TypeScript, Jest, and CLI application testing. Provide specific test cases and implementation guidance."
+  },
+  {
+    "id": "security-review",
+    "message": "Conduct a security review of claude-prompter focusing on API key handling, file system access, user data storage, and potential vulnerabilities in batch processing.",
+    "systemPrompt": "You are a security engineer specializing in CLI tools, API security, and Node.js applications. Identify specific risks and mitigation strategies."
+  },
+  {
+    "id": "feature-prioritization",
+    "message": "Based on claude-prompter's current capabilities (batch processing, usage tracking, sessions, templates), recommend the next 5 high-impact features to implement. Consider user value and technical feasibility.",
+    "systemPrompt": "You are a product manager with deep technical knowledge of developer tools and AI workflow optimization. Prioritize based on user impact and implementation effort."
+  },
+  {
+    "id": "code-quality-audit",
+    "message": "Review claude-prompter's codebase for TypeScript best practices, code organization, naming conventions, and maintainability. Focus on recent batch processing additions.",
+    "systemPrompt": "You are a senior TypeScript developer and code quality expert. Provide specific refactoring suggestions and code improvement recommendations."
+  }
+]
