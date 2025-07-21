@@ -20,6 +20,16 @@ Use the claude-prompter to generate suggestions when:
 4. **Project Completion** - You want to suggest improvements or extensions
 5. **Error Resolution** - After fixing issues, suggest preventive measures
 
+### 🔄 Regular Usage Reminder
+**IMPORTANT**: Use claude-prompter regularly throughout conversations:
+- After completing any significant task or feature
+- When the user seems unsure about next steps
+- Every 3-5 interactions when working on complex projects
+- Before ending a session to provide future direction
+- When switching between different aspects of a project
+
+This ensures users always have clear pathways forward and maximizes the value of each conversation.
+
 ## 📋 Command Syntax
 
 ### Basic Suggestion Generation
@@ -306,6 +316,34 @@ npm install -g @upstash/context7-mcp
   }
 }
 ```
+
+## 🔮 Meta Usage: Using claude-prompter to Improve claude-prompter
+
+### The Power of Self-Reflection
+When working on claude-prompter itself, regularly use the tool to explore enhancement ideas:
+
+```bash
+# Generate ideas for new features
+claude-prompter prompt -m "What features would make claude-prompter more useful for developers?" --send
+
+# Explore integration possibilities
+claude-prompter prompt -m "How can we integrate Context7 MCP's documentation fetching into claude-prompter?" --send
+
+# Get architectural guidance
+claude-prompter suggest -t "claude-prompter architecture improvements" --complexity complex --task-type cli-tool
+```
+
+### Regular Enhancement Reviews
+1. **Weekly**: Use claude-prompter to brainstorm minor improvements
+2. **Monthly**: Generate major feature ideas and architectural changes
+3. **Before Releases**: Get suggestions for documentation and user experience
+
+### Example Meta-Prompts That Have Led to Improvements:
+- "How can claude-prompter better handle cross-project usage?" → Led to wrapper script solution
+- "What's the relationship between claude-prompter and MCPs?" → Clarified complementary roles
+- "How can Context7 enhance claude-prompter?" → Sparked documentation integration ideas
+
+**Remember**: The best improvements often come from using the tool on itself!
 
 ## 🚀 Planned Enhancements (2025-07-19)
 
