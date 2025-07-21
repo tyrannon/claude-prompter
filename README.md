@@ -18,7 +18,7 @@ A clean, professional CLI tool for generating and sending prompts to OpenAI's GP
 
 ```bash
 # Clone and navigate to the project
-cd dev/claude-prompter
+cd ~/claude-prompter-standalone
 
 # Install dependencies
 npm install
@@ -29,7 +29,110 @@ npm run build
 # Copy .env.example to .env and add your OpenAI API key
 cp .env.example .env
 # Edit .env and add your OPENAI_API_KEY
+
+# Set up global alias for easy access from any project
+./setup-alias.sh
+source ~/.zshrc  # or ~/.bashrc for bash users
 ```
+
+## Cross-Project Usage (Use from ANY Directory!)
+
+### Quick Start - Using claude-prompter from codeagent or any project
+
+#### Method 1: Direct Path (Works Immediately)
+```bash
+# From ANY directory (like ~/codeagent), use the full path:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "your topic" --code -l typescript
+
+# Or for prompts:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh prompt -m "your message" --send
+```
+
+#### Method 2: Global Alias (Recommended - After Setup)
+```bash
+# After running setup-alias.sh and sourcing your shell config:
+claude-prompter suggest -t "your topic" --code -l typescript
+claude-prompter prompt -m "your message" --send
+```
+
+### Instructions for Claude (Copy this to use in other projects)
+
+When you want to use claude-prompter in codeagent or any other project, tell Claude:
+
+```
+Use the claude-prompter tool to generate suggestions. The tool is installed at /Users/kaiyakramer/claude-prompter-standalone/
+
+To generate suggestions, run:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "TOPIC" --code -l LANGUAGE --complexity LEVEL --task-type TYPE --claude-analysis
+
+Replace:
+- TOPIC: What we're working on (be specific)
+- LANGUAGE: typescript, python, react, etc.
+- LEVEL: simple, moderate, complex
+- TYPE: api-integration, ui-component, cli-tool, backend-service, etc.
+
+Example:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "React authentication with JWT" --code -l react --complexity moderate --task-type authentication --claude-analysis
+```
+
+### Common Use Cases from Other Projects
+
+#### From codeagent project:
+```bash
+# Working on agent features
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest \
+  -t "AI agent task planning system" \
+  --code -l typescript \
+  --complexity complex \
+  --task-type backend-service \
+  --claude-analysis
+
+# Working on UI components
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest \
+  -t "Agent status dashboard component" \
+  --code -l react \
+  --complexity moderate \
+  --task-type ui-component \
+  --claude-analysis
+
+# Planning complex features
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan create \
+  "Implement multi-agent orchestration system with task distribution and monitoring"
+
+# View and work on plans
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan list
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan start <plan-id>
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan next
+```
+
+#### From any project:
+```bash
+# Get general suggestions
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest \
+  -t "Database migration strategy" \
+  --complexity complex \
+  --task-type database
+
+# Send a prompt directly
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh prompt \
+  -m "Explain the best practices for error handling in TypeScript" \
+  --send
+```
+
+### Troubleshooting Cross-Project Usage
+
+1. **"command not found" error**:
+   - Use the full path: `/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh`
+   - Or re-run setup: `cd ~/claude-prompter-standalone && ./setup-alias.sh && source ~/.zshrc`
+
+2. **"OPENAI_API_KEY not found" error**:
+   - The wrapper script automatically loads the API key from claude-prompter's .env file
+   - Make sure you've set up the API key in `~/claude-prompter-standalone/.env`
+
+3. **Permission denied**:
+   ```bash
+   chmod +x /Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh
+   ```
 
 ## Usage
 
@@ -303,6 +406,43 @@ node dist/cli.js suggest -t "E-commerce platform" --code -l react --complexity c
 ## Contributing
 
 Feel free to extend the suggestion templates in `src/utils/promptSuggestions.ts` for your specific use cases!
+
+## Quick Reference Card (Save this for Claude!)
+
+### Copy-Paste Instructions for Claude in Any Project
+
+```
+I want to use claude-prompter. Here's how:
+
+SUGGEST COMMAND:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "TOPIC" --code -l LANGUAGE --complexity LEVEL --task-type TYPE --claude-analysis
+
+PLAN COMMAND:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan create "DESCRIPTION"
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan list
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan view PLAN-ID
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan start PLAN-ID
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan next
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan complete STEP-ID
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan progress
+
+PROMPT COMMAND:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh prompt -m "MESSAGE" --send
+
+Parameters:
+- LANGUAGE: typescript, python, react, nodejs, etc.
+- LEVEL: simple, moderate, complex
+- TYPE: api-integration, ui-component, cli-tool, backend-service, authentication, database
+```
+
+### Example for codeagent:
+```bash
+# When working on agent features:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "Agent memory management system" --code -l typescript --complexity complex --task-type backend-service --claude-analysis
+
+# When planning a big feature:
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh plan create "Build agent communication protocol with message queuing and state synchronization"
+```
 
 ## License
 

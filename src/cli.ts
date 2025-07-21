@@ -21,6 +21,8 @@ import { createUsageCommand } from './commands/usage';
 import { createChatCommand } from './commands/chat';
 import { createLearnCommand } from './commands/learn';
 import { createHandoffCommand } from './commands/handoff';
+import { createContextCommand } from './commands/context';
+import { createPlanCommand } from './commands/plan';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -101,6 +103,16 @@ async function handlePrompt(options: any) {
         
         if (options.showPrompt) {
           console.log(formatResponse(prompt, '📝 Prompt Sent'));
+        }
+        
+        // Save to session if we're using one
+        if (currentSession) {
+          await sessionManager.addConversationEntry(
+            currentSession.metadata.sessionId,
+            prompt,
+            response,
+            'gpt-4o'
+          );
         }
       } catch (error) {
         spinner.fail(chalk.red('Failed to get response'));
@@ -198,6 +210,8 @@ program.addCommand(createUsageCommand());
 program.addCommand(createChatCommand());
 program.addCommand(createLearnCommand());
 program.addCommand(createHandoffCommand());
+program.addCommand(createContextCommand());
+program.addCommand(createPlanCommand());
 
 program
   .command('config')

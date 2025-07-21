@@ -4,6 +4,9 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Table from 'cli-table3';
 import inquirer from 'inquirer';
+import boxen from 'boxen';
+import { SmartInclusionEngine } from '../services/SmartInclusionEngine';
+import { ContextAnalyzer } from '../services/ContextAnalyzer';
 
 export function createSessionCommand(): Command {
   const session = new Command('session');
@@ -247,6 +250,133 @@ export function createSessionCommand(): Command {
         spinner.fail(chalk.red('Failed to record decision'));
         console.error(error);
         process.exit(1);
+      }
+    });
+
+  // Auto-context commands
+  session
+    .command('auto-context')
+    .description('Configure and preview auto-context inclusion')
+    .option('-e, --enable', 'Enable auto-context for new sessions')
+    .option('-d, --disable', 'Disable auto-context')
+    .option('-p, --preview <prompt>', 'Preview what context would be included')
+    .option('-t, --threshold <value>', 'Set relevance threshold (0-1)', '0.7')
+    .option('--max-tokens <tokens>', 'Maximum tokens for auto-context', '15000')
+    .option('--strategy <type>', 'Inclusion strategy: conservative, balanced, aggressive', 'balanced')
+    .action(async (options) => {
+      if (options.enable) {
+        console.log(chalk.green('✓ Auto-context enabled'));
+        console.log(chalk.gray('Context from relevant past sessions will be automatically included'));
+        return;
+      }
+
+      if (options.disable) {
+        console.log(chalk.yellow('Auto-context disabled'));
+        return;
+      }
+
+      if (options.preview) {
+        const spinner = ora('Analyzing context...').start();
+        
+        try {
+          const engine = new SmartInclusionEngine();
+          const autoContext = await engine.buildAutoContext(options.preview, {
+            maxTokens: parseInt(options.maxTokens),
+            relevanceThreshold: parseFloat(options.threshold),
+            strategy: options.strategy as any
+          });
+
+          spinner.succeed('Context analysis complete');
+
+          // Display preview
+          let report = chalk.bold('🧠 Auto-Context Preview\n\n');
+          
+          if (autoContext.metadata.sourceSessions.length === 0) {
+            report += chalk.yellow('No relevant context found from previous sessions.');
+          } else {
+            report += chalk.cyan('Summary:\n');
+            report += chalk.gray(autoContext.summary) + '\n\n';
+            
+            report += chalk.cyan('Source Sessions:\n');
+            autoContext.metadata.sourceSessions.forEach(id => {
+              report += chalk.gray(`  • ${id}\n`);
+            });
+            
+            report += chalk.cyan(`\nToken Usage: `);
+            report += chalk.yellow(`${autoContext.metadata.totalTokens.toLocaleString()} tokens\n`);
+            
+            report += chalk.cyan('Relevance Score: ');
+            const score = (autoContext.metadata.relevanceScore * 100).toFixed(1);
+            report += chalk.green(`${score}%\n`);
+            
+            if (autoContext.primary.length > 0) {
+              report += chalk.cyan('\nPrimary Context Segments:\n');
+              autoContext.primary.slice(0, 3).forEach(segment => {
+                report += chalk.gray(`  • ${segment.metadata.source} (${segment.tokens} tokens)\n`);
+                report += chalk.dim(`    Reason: ${segment.metadata.reason}\n`);
+              });
+            }
+          }
+
+          console.log(boxen(report, {
+            title: '🧠 Auto-Context Analysis',
+            titleAlignment: 'center',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan'
+          }));
+
+        } catch (error) {
+          spinner.fail('Context analysis failed');
+          console.error(error);
+        }
+      }
+    });
+
+  // Search across sessions
+  session
+    .command('search')
+    .description('Search across all sessions')
+    .requiredOption('-q, --query <text>', 'Search query')
+    .option('-l, --limit <n>', 'Maximum results', '10')
+    .action(async (options) => {
+      const spinner = ora('Searching sessions...').start();
+      
+      try {
+        const analyzer = new ContextAnalyzer();
+        const analysis = await analyzer.analyzeCurrentContext(options.query);
+        const results = await analyzer.findRelevantSessions(analysis, {
+          maxResults: parseInt(options.limit)
+        });
+
+        spinner.succeed(`Found ${results.length} relevant sessions`);
+
+        if (results.length === 0) {
+          console.log(chalk.yellow('No matching sessions found'));
+          return;
+        }
+
+        const table = new Table({
+          head: ['Session ID', 'Relevance', 'Topics', 'Snippet'],
+          colWidths: [15, 12, 25, 50],
+          wordWrap: true
+        });
+
+        results.forEach(result => {
+          table.push([
+            chalk.cyan(result.sessionId.substring(0, 12) + '...'),
+            chalk.green((result.relevanceScore * 100).toFixed(1) + '%'),
+            result.matchedTopics.join(', ') || 'N/A',
+            chalk.gray(result.snippet.substring(0, 80) + '...')
+          ]);
+        });
+
+        console.log(table.toString());
+        
+      } catch (error) {
+        spinner.fail('Search failed');
+        console.error(error);
       }
     });
 

@@ -239,6 +239,20 @@ export class SessionManager {
     return results;
   }
 
+  public async getAllSessions(): Promise<Session[]> {
+    const summaries = await this.listSessions();
+    const sessions: Session[] = [];
+
+    for (const summary of summaries) {
+      const session = await this.loadSession(summary.sessionId);
+      if (session) {
+        sessions.push(session);
+      }
+    }
+
+    return sessions;
+  }
+
   public async exportSession(sessionId: string, format: 'json' | 'markdown' = 'json'): Promise<string> {
     const session = await this.loadSession(sessionId);
     if (!session) {

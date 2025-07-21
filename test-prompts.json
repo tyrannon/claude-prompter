@@ -1,0 +1,17 @@
+[
+  {
+    "id": "test-1",
+    "message": "What is 2+2?",
+    "systemPrompt": "You are a helpful math tutor."
+  },
+  {
+    "id": "test-2", 
+    "message": "Tell me a short joke about programming.",
+    "systemPrompt": "You are a witty comedian."
+  },
+  {
+    "id": "test-3",
+    "message": "Explain photosynthesis in one sentence.",
+    "systemPrompt": "You are a science teacher."
+  }
+]
