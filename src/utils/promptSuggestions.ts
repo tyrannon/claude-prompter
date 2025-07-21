@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 export interface PromptSuggestion {
   id: string;
   title: string;
@@ -199,6 +201,21 @@ export function formatSuggestionsForCLI(suggestions: PromptSuggestion[]): string
 }
 
 /**
+ * Learning-informed suggestion context
+ */
+export interface LearningContext {
+  previousTopics: string[];
+  commonPatterns: Array<{ pattern: string; frequency: number; category: string; success?: boolean }>;
+  userPreferences: {
+    preferredComplexity?: 'simple' | 'moderate' | 'complex';
+    preferredCategories?: string[];
+    commonLanguages?: string[];
+  };
+  sessionCount: number;
+  growthAreas?: string[];
+}
+
+/**
  * Generate prompt suggestions based on Claude's analysis
  */
 export function generateClaudePromptSuggestions(
@@ -294,4 +311,160 @@ export function generateClaudePromptSuggestions(
   });
   
   return suggestions;
+}
+
+/**
+ * Generate learning-informed prompt suggestions that show growth across sessions
+ */
+export function generateLearningAwareSuggestions(
+  topic: string,
+  analysis: {
+    codeGenerated?: boolean;
+    language?: string;
+    features?: string[];
+    complexity?: 'simple' | 'moderate' | 'complex';
+    taskType?: string;
+  },
+  learningContext?: LearningContext
+): PromptSuggestion[] {
+  const suggestions: PromptSuggestion[] = [];
+  
+  // If no learning context, fall back to standard suggestions
+  if (!learningContext) {
+    return generateClaudePromptSuggestions(topic, analysis);
+  }
+  
+  // 🎯 GROWTH-BASED CATEGORY: Level Up from Previous Work
+  if (learningContext.previousTopics.length > 0) {
+    const relatedTopics = learningContext.previousTopics
+      .filter(prev => topic.toLowerCase().includes(prev.toLowerCase()) || prev.toLowerCase().includes(topic.toLowerCase()))
+      .slice(0, 3);
+    
+    if (relatedTopics.length > 0) {
+      suggestions.push({
+        id: 'growth-1',
+        title: `Build on Previous ${relatedTopics[0]} Work`,
+        prompt: `Based on our previous discussions about ${relatedTopics.join(', ')}, how can we extend this ${topic} implementation?`,
+        category: 'follow-up',
+        rationale: `🚀 Building on ${learningContext.sessionCount} previous sessions`
+      });
+    }
+  }
+  
+  // 🎯 GROWTH-BASED CATEGORY: Pattern Recognition
+  if (learningContext.commonPatterns.length > 0) {
+    const successfulPatterns = learningContext.commonPatterns
+      .filter(p => p.success !== false)
+      .sort((a, b) => b.frequency - a.frequency)
+      .slice(0, 2);
+    
+    if (successfulPatterns.length > 0) {
+      suggestions.push({
+        id: 'pattern-1',
+        title: `Apply Your Favorite Pattern`,
+        prompt: `Can you implement ${topic} using the ${successfulPatterns[0].pattern} pattern that we've used successfully ${successfulPatterns[0].frequency} times before?`,
+        category: 'alternative',
+        rationale: `📈 Leveraging your proven pattern (used ${successfulPatterns[0].frequency}x)`
+      });
+    }
+  }
+  
+  // 🎯 GROWTH-BASED CATEGORY: Skill Progression  
+  const currentComplexity = analysis.complexity || 'moderate';
+  const nextComplexityMap = { simple: 'moderate', moderate: 'complex', complex: 'advanced' };
+  const nextLevel = nextComplexityMap[currentComplexity as keyof typeof nextComplexityMap];
+  
+  if (learningContext.sessionCount >= 5 && nextLevel) {
+    suggestions.push({
+      id: 'progression-1',
+      title: `Level Up Complexity`,
+      prompt: `After ${learningContext.sessionCount} sessions, I'm ready for more advanced concepts. Can you show me ${nextLevel} patterns for ${topic}?`,
+      category: 'deep-dive',
+      rationale: `💪 Ready for next level after ${learningContext.sessionCount} sessions`
+    });
+  }
+  
+  // 🎯 GROWTH-BASED CATEGORY: Gap Filling
+  if (learningContext.growthAreas && learningContext.growthAreas.length > 0) {
+    const relevantGaps = learningContext.growthAreas
+      .filter(gap => topic.toLowerCase().includes(gap.toLowerCase()));
+    
+    if (relevantGaps.length > 0) {
+      suggestions.push({
+        id: 'growth-gap-1',
+        title: `Address Knowledge Gap`,
+        prompt: `I notice I haven't explored ${relevantGaps[0]} much in our previous sessions. How does ${topic} relate to ${relevantGaps[0]}?`,
+        category: 'clarification',
+        rationale: `🎓 Filling identified knowledge gaps`
+      });
+    }
+  }
+  
+  // 🎯 GROWTH-BASED CATEGORY: Cross-Session Integration
+  if (learningContext.userPreferences.commonLanguages && learningContext.userPreferences.commonLanguages.length > 1) {
+    const otherLanguages = learningContext.userPreferences.commonLanguages
+      .filter(lang => lang !== analysis.language)
+      .slice(0, 2);
+    
+    if (otherLanguages.length > 0) {
+      suggestions.push({
+        id: 'integration-1',
+        title: `Cross-Language Integration`,
+        prompt: `How would this ${topic} implementation differ if we used ${otherLanguages.join(' or ')} instead of ${analysis.language}?`,
+        category: 'alternative',
+        rationale: `🔄 Leveraging your multi-language experience`
+      });
+    }
+  }
+  
+  // Always include core suggestions, but prioritize learning-based ones
+  const coreSuggestions = generateClaudePromptSuggestions(topic, analysis)
+    .slice(0, 3) // Limit core suggestions to make room for learning ones
+    .map(s => ({ ...s, rationale: s.rationale + ' (core)' }));
+  
+  return [...suggestions, ...coreSuggestions];
+}
+
+/**
+ * Display learning growth information alongside suggestions
+ */
+export function formatGrowthInfo(learningContext?: LearningContext): string {
+  if (!learningContext) return '';
+  
+  let growthInfo = chalk.bold('\n🌱 Learning Journey Progress\n');
+  growthInfo += chalk.gray('─'.repeat(40)) + '\n';
+  
+  // Session count and growth
+  if (learningContext.sessionCount > 0) {
+    const experienceLevel = learningContext.sessionCount < 5 ? 'Getting Started' 
+      : learningContext.sessionCount < 20 ? 'Building Knowledge' 
+      : learningContext.sessionCount < 50 ? 'Experienced' 
+      : 'Expert Level';
+    
+    growthInfo += `📊 Sessions Completed: ${chalk.cyan(learningContext.sessionCount.toString())} (${chalk.yellow(experienceLevel)})\n`;
+  }
+  
+  // Topic evolution
+  if (learningContext.previousTopics.length > 0) {
+    const recentTopics = learningContext.previousTopics.slice(-3);
+    growthInfo += `🎯 Recent Focus Areas: ${chalk.green(recentTopics.join(', '))}\n`;
+  }
+  
+  // Pattern mastery
+  if (learningContext.commonPatterns.length > 0) {
+    const masteredPatterns = learningContext.commonPatterns
+      .filter(p => p.frequency >= 3)
+      .map(p => p.pattern);
+    
+    if (masteredPatterns.length > 0) {
+      growthInfo += `⭐ Mastered Patterns: ${chalk.blue(masteredPatterns.slice(0, 3).join(', '))}\n`;
+    }
+  }
+  
+  // Growth areas
+  if (learningContext.growthAreas && learningContext.growthAreas.length > 0) {
+    growthInfo += `🚀 Growth Opportunities: ${chalk.magenta(learningContext.growthAreas.slice(0, 2).join(', '))}\n`;
+  }
+  
+  return growthInfo + '\n';
 }

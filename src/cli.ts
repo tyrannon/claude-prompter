@@ -10,8 +10,11 @@ import { generateClaudePrompt } from './utils/promptGenerator';
 import { 
   generatePromptSuggestions, 
   generateClaudePromptSuggestions,
+  generateLearningAwareSuggestions,
   formatSuggestionsForCLI,
-  ConversationContext 
+  formatGrowthInfo,
+  ConversationContext,
+  LearningContext
 } from './utils/promptSuggestions';
 import { createSessionCommand } from './commands/session';
 import { createTemplateCommand } from './commands/template';
@@ -162,6 +165,8 @@ program
   .option('--complexity <level>', 'Task complexity: simple, moderate, or complex')
   .option('--task-type <type>', 'Type of task: api-integration, ui-component, cli-tool, etc.')
   .option('--claude-analysis', 'Generate suggestions as if Claude analyzed the output')
+  .option('--show-growth', 'Show learning progress and growth-based suggestions')
+  .option('--sessions <number>', 'Number of recent sessions to analyze for learning', '10')
   .action(async (options) => {
     if (!options.topic) {
       console.error(formatError('Topic is required. Use -t or --topic to specify.'));
@@ -170,9 +175,91 @@ program
     
     try {
       let suggestions;
+      let learningContext: LearningContext | undefined;
       
-      if (options.claudeAnalysis) {
-        // Generate as if Claude analyzed the output
+      // Generate learning context if requested
+      if (options.showGrowth) {
+        const spinner = ora('Analyzing your learning journey...').start();
+        
+        try {
+          // Analyze recent sessions for learning patterns
+          const sessions = await sessionManager.listSessions();
+          const recentSessions = sessions.slice(0, parseInt(options.sessions));
+          
+          const previousTopics: string[] = [];
+          const commonPatterns: Array<{ pattern: string; frequency: number; category: string }> = [];
+          const languages = new Set<string>();
+          let totalConversations = 0;
+          
+          // Extract learning patterns from recent sessions
+          for (const sessionSummary of recentSessions) {
+            const session = await sessionManager.loadSession(sessionSummary.sessionId);
+            if (!session) continue;
+            
+            totalConversations += session.history.length;
+            
+            // Extract topics from prompts
+            session.history.forEach(entry => {
+              const words = entry.prompt.toLowerCase().split(/\s+/);
+              words.forEach(word => {
+                if (word.length > 5 && !['create', 'implement', 'build', 'write', 'develop'].includes(word)) {
+                  previousTopics.push(word);
+                }
+              });
+              
+              // Extract programming languages mentioned
+              const langMatches = entry.prompt.match(/\b(javascript|typescript|python|java|react|node|express|sql|css|html)\b/gi);
+              if (langMatches) {
+                langMatches.forEach(lang => languages.add(lang.toLowerCase()));
+              }
+              
+              // Look for pattern usage (simplified)
+              if (entry.response.includes('pattern') || entry.response.includes('approach')) {
+                const existingPattern = commonPatterns.find(p => entry.response.toLowerCase().includes(p.pattern));
+                if (existingPattern) {
+                  existingPattern.frequency++;
+                } else {
+                  commonPatterns.push({
+                    pattern: 'solution-pattern',
+                    frequency: 1,
+                    category: 'implementation'
+                  });
+                }
+              }
+            });
+          }
+          
+          // Build learning context
+          learningContext = {
+            previousTopics: Array.from(new Set(previousTopics)).slice(0, 10),
+            commonPatterns: commonPatterns.filter(p => p.frequency >= 2),
+            userPreferences: {
+              commonLanguages: Array.from(languages),
+              preferredComplexity: options.complexity as any
+            },
+            sessionCount: recentSessions.length,
+            growthAreas: ['testing', 'deployment', 'performance', 'security'].filter(area => 
+              !previousTopics.some(topic => topic.includes(area))
+            )
+          };
+          
+          spinner.succeed('Learning analysis complete!');
+        } catch (error) {
+          spinner.warn('Could not analyze learning patterns, using standard suggestions');
+          learningContext = undefined;
+        }
+      }
+      
+      // Generate suggestions based on analysis type and learning context
+      if (options.showGrowth && learningContext) {
+        suggestions = generateLearningAwareSuggestions(options.topic, {
+          codeGenerated: options.code,
+          language: options.language,
+          complexity: options.complexity,
+          taskType: options.taskType,
+          features: []
+        }, learningContext);
+      } else if (options.claudeAnalysis) {
         suggestions = generateClaudePromptSuggestions(options.topic, {
           codeGenerated: options.code,
           language: options.language,
@@ -181,7 +268,6 @@ program
           features: []
         });
       } else {
-        // Generate general suggestions
         const context: ConversationContext = {
           topic: options.topic,
           techStack: options.language ? [options.language] : undefined,
@@ -190,11 +276,24 @@ program
         suggestions = generatePromptSuggestions(context);
       }
       
-      const formatted = formatSuggestionsForCLI(suggestions);
-      console.log(formatResponse(formatted, '💡 Prompt Suggestions'));
+      // Display growth information if available
+      let output = '';
+      if (learningContext) {
+        output += formatGrowthInfo(learningContext);
+      }
+      
+      output += formatSuggestionsForCLI(suggestions);
+      
+      const title = options.showGrowth ? '🌱 Learning-Aware Prompt Suggestions' : '💡 Prompt Suggestions';
+      console.log(formatResponse(output, title));
       
       console.log(chalk.cyan('\n✨ To use a suggestion:'));
       console.log(chalk.gray('Copy the prompt and use: claude-prompter prompt -m "prompt" --send\n'));
+      
+      if (options.showGrowth && learningContext?.sessionCount > 0) {
+        console.log(chalk.yellow(`🎯 Growth tip: These suggestions are personalized based on your ${learningContext.sessionCount} previous sessions!`));
+      }
+      
     } catch (error) {
       console.error(formatError(error instanceof Error ? error.message : 'Failed to generate suggestions'));
       process.exit(1);
