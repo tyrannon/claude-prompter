@@ -1,0 +1,107 @@
+.pattern-chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 320px;
+}
+
+.pattern-chart {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.pattern-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  text-align: center;
+  color: #718096;
+}
+
+.pattern-chart-empty p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.pattern-chart-empty p:first-child {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+/* Animations for chart elements */
+.bar {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.bar:hover {
+  filter: brightness(1.1);
+}
+
+.bar-label {
+  pointer-events: none;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Axis styling */
+.y-axis .domain,
+.x-axis .domain {
+  stroke: #e2e8f0;
+}
+
+.y-axis .tick line,
+.x-axis .tick line {
+  stroke: #e2e8f0;
+}
+
+.y-axis .tick text,
+.x-axis .tick text {
+  fill: #718096;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.y-label {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .pattern-chart-container {
+    height: 280px;
+  }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  .y-axis .domain,
+  .x-axis .domain,
+  .y-axis .tick line,
+  .x-axis .tick line {
+    stroke: #4a5568;
+  }
+
+  .y-axis .tick text,
+  .x-axis .tick text {
+    fill: #a0aec0;
+  }
+
+  .y-label {
+    fill: #a0aec0 !important;
+  }
+
+  .bar-label {
+    fill: #e2e8f0 !important;
+  }
+
+  .pattern-chart-empty {
+    color: #a0aec0;
+  }
+
+  .pattern-chart-empty p:first-child {
+    color: #e2e8f0;
+  }
+}
