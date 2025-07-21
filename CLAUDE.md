@@ -234,6 +234,79 @@ This tool is designed to:
 
 Use it whenever you feel the user would benefit from seeing their options laid out clearly!
 
+## 🔧 Cross-Project Usage (Updated: 2025-07-21)
+
+### Problem Solved
+When using claude-prompter from other project directories (like permitagent or stylemuse), the tool couldn't access the OPENAI_API_KEY from its .env file.
+
+### Solution Implemented
+We've created multiple ways to use claude-prompter from any directory:
+
+#### 1. Direct Wrapper Script
+```bash
+# Works immediately from any directory
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "topic" [options]
+```
+
+#### 2. Global Command (Recommended)
+```bash
+# After setting up (one-time):
+source ~/.zshrc  # or ~/.bashrc
+
+# Then use from anywhere:
+claude-prompter suggest -t "topic" [options]
+```
+
+#### 3. Setup Instructions
+If the global command isn't working:
+```bash
+# Run the setup script
+/Users/kaiyakramer/claude-prompter-standalone/setup-alias.sh
+source ~/.zshrc  # or ~/.bashrc
+```
+
+### How It Works
+- The wrapper script automatically loads the OPENAI_API_KEY from claude-prompter's .env file
+- No need to copy API keys to other projects
+- Works seamlessly from any directory on your system
+
+## 🤝 Relationship with MCPs (Model Context Protocol)
+
+### Key Understanding
+**Claude-prompter and MCPs are complementary tools, not competitors:**
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| **claude-prompter** | Generates intelligent follow-up prompts | After completing tasks, to explore next steps |
+| **MCPs** | Provide real-time data/tools to AI | During conversations, for live information |
+
+### Examples of Complementary Usage
+1. **Context7 MCP** provides up-to-date documentation → Claude writes accurate code
+2. **claude-prompter** suggests what to build next → User gets creative ideas
+3. Together: Better code (MCP) + Better questions (claude-prompter) = Optimal workflow
+
+### Recommended MCP Servers
+- **context7**: Real-time documentation fetching (prevents outdated code suggestions)
+- **filesystem**: Direct file system access
+- **github**: Repository operations
+- **postgres/sqlite**: Database queries
+
+### Installation Example
+```bash
+# Install Context7 MCP
+npm install -g @upstash/context7-mcp
+
+# Configure in ~/.config/claude/code/mcp_servers.json
+{
+  "context7": {
+    "command": "context7-mcp",
+    "args": [],
+    "env": {},
+    "type": "stdio"
+  }
+}
+```
+
 ## 🚀 Planned Enhancements (2025-07-19)
 
 Based on real-world experience with complex planning workflows, these features are planned to make claude-prompter even more powerful:
