@@ -5,6 +5,12 @@ import ProgressOverview from './ProgressOverview';
 import TopicNetwork from './TopicNetwork';
 import SessionTimeline from './SessionTimeline';
 import SessionBrowser from './SessionBrowser';
+import GalaxyScene from './galaxy/GalaxyScene';
+import ProjectAnalytics from './ProjectAnalytics';
+import UsageAnalytics from './UsageAnalytics';
+import HeroThemeProvider, { useHeroTheme } from './HeroTheme';
+import SessionDetailsModal from './SessionDetailsModal';
+import ProjectSuggestions from './ProjectSuggestions';
 
 interface LearningData {
   sessionCount: number;
@@ -37,10 +43,13 @@ interface LearningData {
   languages?: string[];
 }
 
-const Dashboard: React.FC = () => {
+const DashboardInner: React.FC = () => {
   const [learningData, setLearningData] = useState<LearningData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<'analytics' | 'sessions' | 'projects' | 'usage'>('analytics');
+  const [activeView, setActiveView] = useState<'analytics' | 'sessions' | 'projects' | 'usage' | 'galaxy' | 'training'>('analytics');
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
+  const { currentTheme, setTheme, isHeroMode, getRandomCatchphrase } = useHeroTheme();
 
   useEffect(() => {
     const fetchLearningData = async () => {
@@ -88,12 +97,29 @@ const Dashboard: React.FC = () => {
     fetchLearningData();
   }, []);
 
+  const openSessionDetails = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setIsSessionModalOpen(true);
+  };
+
+  const closeSessionDetails = () => {
+    setSelectedSessionId(null);
+    setIsSessionModalOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="dashboard-loading">
-        <div className="loading-spinner"></div>
-        <h2>🌱 Analyzing your learning journey...</h2>
-        <p>Loading analytics data...</p>
+        <div className={isHeroMode() ? "hero-loading" : "loading-spinner"}>
+          {isHeroMode() ? "💪" : ""}
+        </div>
+        <h2>
+          {isHeroMode() ? 
+            "⚡ ANALYZING YOUR HERO TRAINING JOURNEY... ⚡" : 
+            "🌱 Analyzing your learning journey..."
+          }
+        </h2>
+        <p>{isHeroMode() ? "CHANNELING HERO POWER..." : "Loading analytics data..."}</p>
       </div>
     );
   }
@@ -109,34 +135,66 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="dashboard">
+      {/* Hero Theme Toggle */}
+      <button 
+        className="hero-theme-toggle"
+        onClick={() => setTheme(currentTheme.mode === 'allmight' ? 'default' : 'allmight')}
+        title={isHeroMode() ? 'Switch to Default Mode' : 'ACTIVATE HERO MODE!'}
+      >
+        {isHeroMode() ? '⚡' : '🦸'}
+      </button>
+
       <header className="dashboard-header">
-        <h1>🌱 Claude Prompter Learning Dashboard</h1>
+        <h1 className={isHeroMode() ? "hero-title" : ""}>
+          {isHeroMode() ? 
+            "🦸 HERO TRAINING ACADEMY 🦸" : 
+            "🌱 Claude Prompter Learning Dashboard"
+          }
+        </h1>
         <div className="dashboard-nav">
           <button 
             className={`nav-item ${activeView === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveView('analytics')}
           >
-            📊 Analytics
+            {isHeroMode() ? '📊 HERO ANALYTICS' : '📊 Analytics'}
           </button>
           <button 
             className={`nav-item ${activeView === 'sessions' ? 'active' : ''}`}
             onClick={() => setActiveView('sessions')}
           >
-            📚 Sessions
+            {isHeroMode() ? '📚 TRAINING LOGS' : '📚 Sessions'}
           </button>
           <button 
             className={`nav-item ${activeView === 'projects' ? 'active' : ''}`}
             onClick={() => setActiveView('projects')}
           >
-            🚀 Projects
+            {isHeroMode() ? '🚀 HERO PROJECTS' : '🚀 Projects'}
           </button>
           <button 
             className={`nav-item ${activeView === 'usage' ? 'active' : ''}`}
             onClick={() => setActiveView('usage')}
           >
-            💰 Usage
+            {isHeroMode() ? '💰 POWER USAGE' : '💰 Usage'}
+          </button>
+          <button 
+            className={`nav-item ${activeView === 'galaxy' ? 'active' : ''}`}
+            onClick={() => setActiveView('galaxy')}
+          >
+            {isHeroMode() ? '🌌 HERO GALAXY' : '🌌 Galaxy'}
+          </button>
+          <button 
+            className={`nav-item ${activeView === 'training' ? 'active' : ''}`}
+            onClick={() => setActiveView('training')}
+          >
+            {isHeroMode() ? '🤖 INTELLIGENT SUGGESTIONS' : '🎯 Smart Suggestions'}
           </button>
         </div>
+        
+        {isHeroMode() && (
+          <div className="hero-encouragement-banner">
+            <span>💪 {getRandomCatchphrase()} 💪</span>
+          </div>
+        )}
       </header>
 
       <main className="dashboard-content">
@@ -228,8 +286,7 @@ const Dashboard: React.FC = () => {
           <div className="dashboard-single-view">
             <SessionBrowser 
               onSessionSelect={(session) => {
-                console.log('Selected session:', session);
-                // TODO: Implement session details view
+                openSessionDetails(session.sessionId);
               }}
             />
           </div>
@@ -237,35 +294,90 @@ const Dashboard: React.FC = () => {
 
         {activeView === 'projects' && (
           <div className="dashboard-single-view">
-            <div className="dashboard-card">
-              <h2>🚀 Project Analytics</h2>
-              <p>Coming soon! This will show learning insights for each project:</p>
-              <ul>
-                <li><strong>claude-prompter</strong>: Meta-learning about prompt engineering</li>
-                <li><strong>stylemuse</strong>: UI/UX patterns and design evolution</li>
-                <li><strong>codeagent</strong>: Code generation and automation patterns</li>
-                <li><strong>Custom projects</strong>: Automatically detected project categories</li>
-              </ul>
-            </div>
+            <ProjectAnalytics />
           </div>
         )}
 
         {activeView === 'usage' && (
           <div className="dashboard-single-view">
-            <div className="dashboard-card">
-              <h2>💰 Usage Analytics</h2>
-              <p>Coming soon! This will show detailed cost and usage metrics:</p>
-              <ul>
-                <li><strong>Token usage trends</strong>: Input/output token consumption over time</li>
-                <li><strong>Cost breakdown</strong>: Daily/monthly spending with projections</li>
-                <li><strong>Efficiency metrics</strong>: Cost per successful interaction</li>
-                <li><strong>Resource optimization</strong>: Recommendations for better efficiency</li>
-              </ul>
+            <UsageAnalytics />
+          </div>
+        )}
+
+        {activeView === 'galaxy' && (
+          <div className="dashboard-single-view">
+            <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <GalaxyScene 
+                sessions={[
+                  {
+                    id: '1',
+                    title: 'React Components',
+                    date: '2025-01-20',
+                    complexity: 'moderate',
+                    topics: ['React', 'TypeScript', 'Hooks'],
+                    patterns: ['useState', 'useEffect', 'component-composition']
+                  },
+                  {
+                    id: '2', 
+                    title: 'Three.js Basics',
+                    date: '2025-01-21',
+                    complexity: 'complex',
+                    topics: ['Three.js', 'WebGL', '3D Graphics'],
+                    patterns: ['scene-setup', 'mesh-creation', 'animation-loop']
+                  },
+                  {
+                    id: '3',
+                    title: 'API Integration', 
+                    date: '2025-01-19',
+                    complexity: 'simple',
+                    topics: ['REST API', 'Fetch', 'Error Handling'],
+                    patterns: ['async-await', 'try-catch', 'data-fetching']
+                  },
+                  {
+                    id: '4',
+                    title: 'State Management',
+                    date: '2025-01-18', 
+                    complexity: 'moderate',
+                    topics: ['Redux', 'Context', 'State'],
+                    patterns: ['reducer-pattern', 'action-creators', 'state-normalization']
+                  },
+                  {
+                    id: '5',
+                    title: 'Performance Optimization',
+                    date: '2025-01-17',
+                    complexity: 'complex', 
+                    topics: ['React.memo', 'useMemo', 'useCallback'],
+                    patterns: ['memoization', 'virtual-dom', 'render-optimization']
+                  }
+                ]} 
+              />
             </div>
           </div>
         )}
+
+        {activeView === 'training' && (
+          <div className="dashboard-single-view">
+            <ProjectSuggestions />
+          </div>
+        )}
       </main>
+
+      {/* Session Details Modal */}
+      <SessionDetailsModal 
+        isOpen={isSessionModalOpen}
+        onClose={closeSessionDetails}
+        sessionId={selectedSessionId}
+      />
     </div>
+  );
+};
+
+// Main Dashboard component wrapped with Hero Theme Provider
+const Dashboard: React.FC = () => {
+  return (
+    <HeroThemeProvider>
+      <DashboardInner />
+    </HeroThemeProvider>
   );
 };
 
