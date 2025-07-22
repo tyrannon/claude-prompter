@@ -28,6 +28,7 @@ import { createHandoffCommand } from './commands/handoff';
 import { createContextCommand } from './commands/context';
 import { createPlanCommand } from './commands/plan';
 import { createStatsCommand } from './commands/stats';
+import { createPatternsCommand } from './commands/patterns';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -339,6 +340,7 @@ program.addCommand(createHandoffCommand());
 program.addCommand(createContextCommand());
 program.addCommand(createPlanCommand());
 program.addCommand(createStatsCommand());
+program.addCommand(createPatternsCommand());
 
 program
   .command('config')
