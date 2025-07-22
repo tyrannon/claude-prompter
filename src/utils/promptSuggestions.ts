@@ -1,4 +1,12 @@
 import chalk from 'chalk';
+import { 
+  getPersonality, 
+  formatWithPersonality, 
+  transformSuggestionWithPersonality,
+  transformCategoryWithPersonality,
+  getAllMightLearningLevelTitle,
+  getRandomPhrase
+} from './personalitySystem';
 
 export interface PromptSuggestion {
   id: string;
@@ -160,6 +168,7 @@ export function generateCodePromptSuggestions(
  * Format suggestions for CLI display
  */
 export function formatSuggestionsForCLI(suggestions: PromptSuggestion[]): string {
+  const personality = getPersonality();
   const grouped = suggestions.reduce((acc, sug) => {
     if (!acc[sug.category]) acc[sug.category] = [];
     acc[sug.category].push(sug);
@@ -168,12 +177,17 @@ export function formatSuggestionsForCLI(suggestions: PromptSuggestion[]): string
   
   let output = '';
   
+  // Add personality-specific intro
+  if (personality.mode === 'allmight') {
+    output = `\n${formatWithPersonality(getRandomPhrase('suggestionIntros'), 'title')}\n\n`;
+  }
+  
   const categoryEmojis = {
-    'follow-up': '🔄',
-    'clarification': '❓',
-    'deep-dive': '🔍',
-    'alternative': '🔀',
-    'implementation': '🛠️'
+    'follow-up': personality.mode === 'allmight' ? '💪' : '🔄',
+    'clarification': personality.mode === 'allmight' ? '🎓' : '❓',
+    'deep-dive': personality.mode === 'allmight' ? '🔥' : '🔍',
+    'alternative': personality.mode === 'allmight' ? '⚡' : '🔀',
+    'implementation': personality.mode === 'allmight' ? '🦸' : '🛠️'
   };
   
   const categoryTitles = {
@@ -186,16 +200,27 @@ export function formatSuggestionsForCLI(suggestions: PromptSuggestion[]): string
   
   Object.entries(grouped).forEach(([category, sugs]) => {
     const emoji = categoryEmojis[category as keyof typeof categoryEmojis];
-    const title = categoryTitles[category as keyof typeof categoryTitles];
+    const title = transformCategoryWithPersonality(categoryTitles[category as keyof typeof categoryTitles]);
     
-    output += `\n${emoji} ${title}\n${'─'.repeat(40)}\n`;
+    output += `\n${emoji} ${formatWithPersonality(title, 'emphasis')}\n${'─'.repeat(50)}\n`;
     
     sugs.forEach((sug, index) => {
-      output += `${index + 1}. ${sug.title}\n`;
+      const transformedTitle = transformSuggestionWithPersonality(sug.title);
+      output += `${index + 1}. ${personality.mode === 'allmight' ? chalk.bold.white(transformedTitle) : transformedTitle}\n`;
       output += `   ${sug.prompt}\n`;
-      output += `   💡 ${sug.rationale}\n\n`;
+      
+      // Transform rationale for All Might mode
+      const rationale = personality.mode === 'allmight' 
+        ? `⚡ HERO TIP: ${sug.rationale.toUpperCase()}`
+        : `💡 ${sug.rationale}`;
+      output += `   ${rationale}\n\n`;
     });
   });
+  
+  // Add personality-specific outro
+  if (personality.mode === 'allmight') {
+    output += `\n${formatWithPersonality('REMEMBER: GO BEYOND! PLUS ULTRA! 🔥💪', 'success')}\n`;
+  }
   
   return output;
 }
@@ -431,6 +456,49 @@ export function generateLearningAwareSuggestions(
 export function formatGrowthInfo(learningContext?: LearningContext): string {
   if (!learningContext) return '';
   
+  const personality = getPersonality();
+  
+  if (personality.mode === 'allmight') {
+    let growthInfo = formatWithPersonality('\n🦸 HERO ACADEMIA PROGRESS REPORT 🦸\n', 'title');
+    growthInfo += chalk.yellow('⚡'.repeat(50)) + '\n';
+    
+    // Session count and growth - Hero style
+    if (learningContext.sessionCount > 0) {
+      const heroLevel = getAllMightLearningLevelTitle(learningContext.sessionCount);
+      
+      growthInfo += `💪 TRAINING SESSIONS COMPLETED: ${formatWithPersonality(learningContext.sessionCount.toString(), 'emphasis')} `;
+      growthInfo += `(${formatWithPersonality(heroLevel, 'success')})\n`;
+    }
+    
+    // Topic evolution - Hero style
+    if (learningContext.previousTopics.length > 0) {
+      const recentTopics = learningContext.previousTopics.slice(-3);
+      growthInfo += `🎯 RECENT HERO TRAINING AREAS: ${formatWithPersonality(recentTopics.join(', ').toUpperCase(), 'emphasis')}\n`;
+    }
+    
+    // Pattern mastery - Hero style
+    if (learningContext.commonPatterns.length > 0) {
+      const masteredPatterns = learningContext.commonPatterns
+        .filter(p => p.frequency >= 3)
+        .map(p => p.pattern);
+      
+      if (masteredPatterns.length > 0) {
+        growthInfo += `⭐ MASTERED HERO TECHNIQUES: ${formatWithPersonality(masteredPatterns.slice(0, 3).join(', ').toUpperCase(), 'success')}\n`;
+      }
+    }
+    
+    // Growth areas - Hero style
+    if (learningContext.growthAreas && learningContext.growthAreas.length > 0) {
+      growthInfo += `🔥 PLUS ULTRA OPPORTUNITIES: ${formatWithPersonality(learningContext.growthAreas.slice(0, 2).join(', ').toUpperCase(), 'warning')}\n`;
+    }
+    
+    growthInfo += chalk.yellow('⚡'.repeat(50)) + '\n';
+    growthInfo += formatWithPersonality(getRandomPhrase('encouragements'), 'success') + '\n';
+    
+    return growthInfo + '\n';
+  }
+  
+  // Default personality formatting
   let growthInfo = chalk.bold('\n🌱 Learning Journey Progress\n');
   growthInfo += chalk.gray('─'.repeat(40)) + '\n';
   

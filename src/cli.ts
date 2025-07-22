@@ -16,6 +16,7 @@ import {
   ConversationContext,
   LearningContext
 } from './utils/promptSuggestions';
+import { setPersonality, PersonalityMode } from './utils/personalitySystem';
 import { createSessionCommand } from './commands/session';
 import { createTemplateCommand } from './commands/template';
 import { createHistoryCommand } from './commands/history';
@@ -168,11 +169,15 @@ program
   .option('--claude-analysis', 'Generate suggestions as if Claude analyzed the output')
   .option('--show-growth', 'Show learning progress and growth-based suggestions')
   .option('--sessions <number>', 'Number of recent sessions to analyze for learning', '10')
+  .option('--personality <mode>', 'Personality mode: default, allmight, formal, casual', 'default')
   .action(async (options) => {
     if (!options.topic) {
       console.error(formatError('Topic is required. Use -t or --topic to specify.'));
       process.exit(1);
     }
+    
+    // Set personality mode
+    setPersonality(options.personality as PersonalityMode);
     
     try {
       let suggestions;
@@ -285,14 +290,31 @@ program
       
       output += formatSuggestionsForCLI(suggestions);
       
-      const title = options.showGrowth ? '🌱 Learning-Aware Prompt Suggestions' : '💡 Prompt Suggestions';
+      // Personality-aware title
+      let title;
+      if (options.personality === 'allmight') {
+        title = options.showGrowth ? '🦸 HERO TRAINING SUGGESTIONS - PLUS ULTRA!' : '💪 MIGHTY PROMPT SUGGESTIONS';
+      } else {
+        title = options.showGrowth ? '🌱 Learning-Aware Prompt Suggestions' : '💡 Prompt Suggestions';
+      }
+      
       console.log(formatResponse(output, title));
       
-      console.log(chalk.cyan('\n✨ To use a suggestion:'));
-      console.log(chalk.gray('Copy the prompt and use: claude-prompter prompt -m "prompt" --send\n'));
+      // Personality-aware usage instructions
+      if (options.personality === 'allmight') {
+        console.log(chalk.bold.yellow('\n⚡ TO USE A HERO SUGGESTION:'));
+        console.log(chalk.bold.cyan('COPY THE PROMPT AND UNLEASH: claude-prompter prompt -m "prompt" --send --personality allmight\n'));
+      } else {
+        console.log(chalk.cyan('\n✨ To use a suggestion:'));
+        console.log(chalk.gray('Copy the prompt and use: claude-prompter prompt -m "prompt" --send\n'));
+      }
       
       if (options.showGrowth && learningContext?.sessionCount > 0) {
-        console.log(chalk.yellow(`🎯 Growth tip: These suggestions are personalized based on your ${learningContext.sessionCount} previous sessions!`));
+        if (options.personality === 'allmight') {
+          console.log(chalk.bold.yellow(`🔥 HERO FACT: THESE MIGHTY SUGGESTIONS ARE FORGED FROM YOUR ${learningContext.sessionCount} TRAINING SESSIONS! GO BEYOND!`));
+        } else {
+          console.log(chalk.yellow(`🎯 Growth tip: These suggestions are personalized based on your ${learningContext.sessionCount} previous sessions!`));
+        }
       }
       
     } catch (error) {
