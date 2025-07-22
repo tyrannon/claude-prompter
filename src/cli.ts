@@ -27,7 +27,7 @@ import { createLearnCommand } from './commands/learn';
 import { createHandoffCommand } from './commands/handoff';
 import { createContextCommand } from './commands/context';
 import { createPlanCommand } from './commands/plan';
-import { createGuiCommand } from './commands/gui';
+import { createStatsCommand } from './commands/stats';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -317,7 +317,11 @@ program
         }
       }
       
+      // Command completed successfully
+      
     } catch (error) {
+      // Command failed
+      
       console.error(formatError(error instanceof Error ? error.message : 'Failed to generate suggestions'));
       process.exit(1);
     }
@@ -334,7 +338,7 @@ program.addCommand(createLearnCommand());
 program.addCommand(createHandoffCommand());
 program.addCommand(createContextCommand());
 program.addCommand(createPlanCommand());
-program.addCommand(createGuiCommand());
+program.addCommand(createStatsCommand());
 
 program
   .command('config')
