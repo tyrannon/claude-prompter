@@ -71,6 +71,7 @@ export class SessionService {
   private ensureDirectoryExists(): void {
     if (!fs.existsSync(this.sessionDirectory)) {
       fs.mkdirSync(this.sessionDirectory, { recursive: true });
+      console.log(`📁 Created sessions directory: ${this.sessionDirectory}`);
     }
   }
 
@@ -83,17 +84,38 @@ export class SessionService {
     const sessionPath = this.getSessionPath(sessionId);
     
     try {
+      // Check if file exists
+      if (!fs.existsSync(sessionPath)) {
+        return null;
+      }
+      
       const sessionData = await fsPromises.readFile(sessionPath, 'utf-8');
+      
+      if (!sessionData.trim()) {
+        return null;
+      }
+      
       const session: Session = JSON.parse(sessionData, (key, value) => {
-        // Convert date strings back to Date objects
-        if (key.includes('Date') || key === 'timestamp' || key.includes('At')) {
-          return new Date(value);
+        // Convert date strings back to Date objects - be more specific about which fields
+        if (typeof value === 'string' && (
+          key === 'createdDate' || 
+          key === 'lastAccessed' || 
+          key === 'timestamp' ||
+          key === 'createdAt' ||
+          key === 'updatedAt'
+        )) {
+          const date = new Date(value);
+          // Only return the date if it's valid
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
         }
         return value;
       });
       
       return session;
     } catch (error) {
+      console.error(`❌ Error loading session ${sessionId}:`, error);
       return null;
     }
   }
@@ -101,12 +123,20 @@ export class SessionService {
   // Get recent sessions with analytics
   public async getRecentSessions(limit: number = 10): Promise<SessionSummary[]> {
     try {
+      // Check if directory exists
+      if (!fs.existsSync(this.sessionDirectory)) {
+        console.log('❌ Session directory does not exist');
+        return [];
+      }
+      
       const files = await fsPromises.readdir(this.sessionDirectory);
       const sessions: SessionSummary[] = [];
+      const jsonFiles = files.filter(file => file.endsWith('.json'));
 
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          const sessionId = file.replace('.json', '');
+      for (const file of jsonFiles) {
+        const sessionId = file.replace('.json', '');
+        
+        try {
           const session = await this.loadSession(sessionId);
           if (session) {
             sessions.push({
@@ -119,14 +149,19 @@ export class SessionService {
               tags: session.metadata.tags
             });
           }
+        } catch (fileError) {
+          console.error(`❌ Error processing file ${file}:`, fileError);
         }
       }
 
-      return sessions
+      const sortedSessions = sessions
         .sort((a, b) => b.lastAccessed.getTime() - a.lastAccessed.getTime())
         .slice(0, limit);
+        
+      console.log(`📊 SessionService: Loaded ${sessions.length} sessions, returning ${sortedSessions.length}`);
+      return sortedSessions;
     } catch (error) {
-      console.error('Error getting recent sessions:', error);
+      console.error('❌ Error getting recent sessions:', error);
       return [];
     }
   }
