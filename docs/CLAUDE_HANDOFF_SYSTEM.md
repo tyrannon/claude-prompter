@@ -403,8 +403,8 @@ claude-prompter handoff config --auto true --preserve complete
 # Start handoff-enabled session
 claude-prompter chat --handoff-enabled
 
-# Monitor handoff dashboard
-claude-prompter handoff dashboard
+# Monitor handoff history
+claude-prompter history show --limit 10
 ```
 
 This system transforms claude-prompter from a single-model tool into an intelligent multi-model orchestrator that maintains perfect context continuity and learns from every interaction!

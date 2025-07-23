@@ -3,6 +3,9 @@ import chalk from 'chalk';
 import boxen from 'boxen';
 import Table from 'cli-table3';
 import { SessionManager } from '../data/SessionManager';
+import { globalRegexCache } from '../utils/RegexCache';
+import { StreamProcessor } from '../utils/StreamProcessor';
+import { PaginatedDisplay } from '../utils/PaginatedDisplay';
 
 interface PatternAnalysis {
   codingPatterns: Array<{ pattern: string; frequency: number; examples: string[] }>;
@@ -24,33 +27,113 @@ export function createPatternsCommand(): Command {
     .option('-j, --json', 'Output as JSON')
     .option('-o, --output <file>', 'Export to file (supports .json, .csv, .md)')
     .option('--min-frequency <number>', 'Minimum frequency to show (default: 2)', '2')
+    .option('--page <number>', 'Page number for pagination (default: 1)', '1')
+    .option('--page-size <number>', 'Items per page (default: 20)', '20')
+    .option('--stream', 'Use streaming mode for large datasets')
+    .option('--no-pagination', 'Disable pagination and show all results')
     .action(async (options) => {
-      const sessionManager = new SessionManager();
-      const sessions = await sessionManager.getAllSessions();
+      try {
+        const sessionManager = new SessionManager();
+        
+        // Ensure cache is initialized before proceeding
+        if (sessionManager.isLazyLoadingEnabled()) {
+          try {
+            await sessionManager.rebuildMetadataCache();
+          } catch (error) {
+            console.warn('Cache initialization failed, using legacy mode');
+          }
+        }
+        
+        let sessions;
+        try {
+          sessions = await sessionManager.getAllSessions();
+        } catch (error) {
+          console.error(chalk.red('Failed to load sessions from storage:'));
+          console.error(chalk.gray(error instanceof Error ? error.message : 'Unknown error'));
+          process.exit(1);
+        }
 
-      if (sessions.length === 0) {
-        console.log(chalk.yellow('No sessions found. Start using claude-prompter to build pattern history!'));
-        return;
+        if (!sessions || sessions.length === 0) {
+          console.log(chalk.yellow('No sessions found. Start using claude-prompter to build pattern history!'));
+          console.log(chalk.gray('Try running: claude-prompter session start --project "my-project"'));
+          return;
+        }
+
+        // Validate options
+        if (options.days && (isNaN(options.days) || parseInt(options.days) < 1)) {
+          console.error(chalk.red('Invalid days value. Must be a positive number.'));
+          process.exit(1);
+        }
+
+        if (options.limit && (isNaN(options.limit) || parseInt(options.limit) < 1)) {
+          console.error(chalk.red('Invalid limit value. Must be a positive number.'));
+          process.exit(1);
+        }
+
+        if (options.minFrequency && (isNaN(options.minFrequency) || parseInt(options.minFrequency) < 1)) {
+          console.error(chalk.red('Invalid min-frequency value. Must be a positive number.'));
+          process.exit(1);
+        }
+
+        const validTypes = ['coding', 'topics', 'languages', 'time', 'sequences', 'all'];
+        if (options.type && !validTypes.includes(options.type)) {
+          console.error(chalk.red(`Invalid type "${options.type}". Valid types: ${validTypes.join(', ')}`));
+          process.exit(1);
+        }
+
+        let analysis;
+        try {
+          analysis = await analyzePatterns(sessions, options);
+        } catch (error) {
+          console.error(chalk.red('Failed to analyze patterns:'));
+          console.error(chalk.gray(error instanceof Error ? error.message : 'Unknown error'));
+          process.exit(1);
+        }
+
+        try {
+          if (options.output) {
+            await exportPatternAnalysis(analysis, options);
+          } else if (options.json) {
+            console.log(JSON.stringify(analysis, null, 2));
+          } else {
+            // Use streaming/pagination based on options and data size
+            const shouldPaginate = !options.noPagination && !options.stream;
+            const totalPatterns = analysis.codingPatterns.length + 
+                                 analysis.topicPatterns.length + 
+                                 analysis.languagePatterns.length + 
+                                 analysis.timePatterns.length + 
+                                 analysis.sequencePatterns.length;
+            
+            if (shouldPaginate && totalPatterns > 50) {
+              await displayPaginatedPatternAnalysis(analysis, options);
+            } else if (options.stream || totalPatterns > 200) {
+              await displayStreamedPatternAnalysis(analysis, options);
+            } else {
+              displayPatternAnalysis(analysis, options);
+            }
+          }
+        } catch (error) {
+          console.error(chalk.red('Failed to display/export pattern analysis:'));
+          console.error(chalk.gray(error instanceof Error ? error.message : 'Unknown error'));
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error(chalk.red('Unexpected error in patterns command:'));
+        console.error(chalk.gray(error instanceof Error ? error.message : 'Unknown error'));
+        process.exit(1);
       }
-
-      const analysis = await analyzePatterns(sessions, options);
-
-      if (options.output) {
-        await exportPatternAnalysis(analysis, options);
-        return;
-      }
-
-      if (options.json) {
-        console.log(JSON.stringify(analysis, null, 2));
-        return;
-      }
-
-      displayPatternAnalysis(analysis, options);
     });
 
   return command;
 }
 
+/**
+ * Analyzes pattern frequency and usage trends across session data
+ * @param sessions - Array of session objects to analyze
+ * @param options - Analysis options including filters, limits, and time ranges
+ * @returns PatternAnalysis object with coding, topic, language, time, and sequence patterns
+ * @throws Error if analysis fails or data is invalid
+ */
 async function analyzePatterns(sessions: any[], options: any): Promise<PatternAnalysis> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - parseInt(options.days));
@@ -194,31 +277,47 @@ async function analyzePatterns(sessions: any[], options: any): Promise<PatternAn
   return analysis;
 }
 
+/**
+ * Detects coding patterns from conversation content using cached regex matching
+ * @param content - Text content from conversation history
+ * @returns Array of detected patterns with names and descriptions
+ */
 function detectCodingPatterns(content: string): Array<{ name: string; example: string }> {
   const patterns = [];
   
-  const codingPatternMap = {
-    'async-await': { regex: /async|await|promise/gi, desc: 'asynchronous programming' },
-    'error-handling': { regex: /try|catch|error|exception|throw/gi, desc: 'error management' },
-    'testing': { regex: /test|jest|mocha|vitest|describe|it\(|expect/gi, desc: 'testing practices' },
-    'api-integration': { regex: /api|endpoint|http|axios|fetch|rest|graphql/gi, desc: 'API development' },
-    'authentication': { regex: /auth|jwt|token|login|session|oauth|passport/gi, desc: 'authentication systems' },
-    'state-management': { regex: /state|redux|zustand|context|provider|store/gi, desc: 'state handling' },
-    'component-patterns': { regex: /component|react|vue|angular|props|hook/gi, desc: 'UI components' },
-    'database': { regex: /database|sql|mongo|postgres|query|orm|prisma/gi, desc: 'data persistence' },
-    'deployment': { regex: /deploy|docker|kubernetes|aws|heroku|vercel|ci\/cd/gi, desc: 'deployment strategies' },
-    'performance': { regex: /performance|optimize|cache|lazy|memoiz|debounce/gi, desc: 'optimization techniques' }
-  };
+  const codingPatternMap = new Map([
+    ['async-await', { pattern: 'async|await|promise', desc: 'asynchronous programming' }],
+    ['error-handling', { pattern: 'try|catch|error|exception|throw', desc: 'error management' }],
+    ['testing', { pattern: 'test|jest|mocha|vitest|describe|it\\(|expect', desc: 'testing practices' }],
+    ['api-integration', { pattern: 'api|endpoint|http|axios|fetch|rest|graphql', desc: 'API development' }],
+    ['authentication', { pattern: 'auth|jwt|token|login|session|oauth|passport', desc: 'authentication systems' }],
+    ['state-management', { pattern: 'state|redux|zustand|context|provider|store', desc: 'state handling' }],
+    ['component-patterns', { pattern: 'component|react|vue|angular|props|hook', desc: 'UI components' }],
+    ['database', { pattern: 'database|sql|mongo|postgres|query|orm|prisma', desc: 'data persistence' }],
+    ['deployment', { pattern: 'deploy|docker|kubernetes|aws|heroku|vercel|ci\\/cd', desc: 'deployment strategies' }],
+    ['performance', { pattern: 'performance|optimize|cache|lazy|memoiz|debounce', desc: 'optimization techniques' }]
+  ]);
 
-  Object.entries(codingPatternMap).forEach(([patternName, { regex, desc }]) => {
-    const matches = content.match(regex);
-    if (matches && matches.length > 0) {
-      patterns.push({
-        name: patternName,
-        example: desc
-      });
+  // Convert to patterns map for batch testing
+  const patternsMap = new Map<string, string>();
+  for (const [name, { pattern }] of codingPatternMap.entries()) {
+    patternsMap.set(name, pattern);
+  }
+
+  // Use batch testing for optimal performance
+  const batchResult = globalRegexCache.batchTest(patternsMap, content);
+  
+  for (const [patternName, result] of batchResult.results.entries()) {
+    if (result.matched) {
+      const patternInfo = codingPatternMap.get(patternName);
+      if (patternInfo) {
+        patterns.push({
+          name: patternName,
+          example: patternInfo.desc
+        });
+      }
     }
-  });
+  }
 
   return patterns;
 }
@@ -252,24 +351,27 @@ function extractTopics(content: string): string[] {
 
 function detectLanguages(content: string): string[] {
   const languages = [];
-  const languagePatterns = {
-    'javascript': /\b(javascript|js|nodejs|npm|yarn)\b/gi,
-    'typescript': /\b(typescript|ts)\b/gi,
-    'python': /\b(python|py|pip|django|flask)\b/gi,
-    'react': /\b(react|jsx|tsx)\b/gi,
-    'css': /\b(css|scss|sass|styled)\b/gi,
-    'sql': /\b(sql|mysql|postgres|sqlite)\b/gi,
-    'go': /\b(golang|go)\b/gi,
-    'rust': /\b(rust|cargo)\b/gi,
-    'java': /\b(java|spring|maven)\b/gi,
-    'php': /\b(php|laravel|composer)\b/gi
-  };
+  const languagePatterns = new Map([
+    ['javascript', '\\b(javascript|js|nodejs|npm|yarn)\\b'],
+    ['typescript', '\\b(typescript|ts)\\b'],
+    ['python', '\\b(python|py|pip|django|flask)\\b'],
+    ['react', '\\b(react|jsx|tsx)\\b'],
+    ['css', '\\b(css|scss|sass|styled)\\b'],
+    ['sql', '\\b(sql|mysql|postgres|sqlite)\\b'],
+    ['go', '\\b(golang|go)\\b'],
+    ['rust', '\\b(rust|cargo)\\b'],
+    ['java', '\\b(java|spring|maven)\\b'],
+    ['php', '\\b(php|laravel|composer)\\b']
+  ]);
 
-  Object.entries(languagePatterns).forEach(([lang, pattern]) => {
-    if (pattern.test(content)) {
+  // Use batch testing for optimal performance
+  const batchResult = globalRegexCache.batchTest(languagePatterns, content);
+  
+  for (const [lang, result] of batchResult.results.entries()) {
+    if (result.matched) {
       languages.push(lang);
     }
-  });
+  }
 
   return languages;
 }
@@ -278,37 +380,49 @@ function detectSequencePatterns(prompt: string): Array<{ name: string; descripti
   const sequences = [];
   const lowerPrompt = prompt.toLowerCase();
 
-  const sequencePatterns = {
-    'create-implement-test': { 
-      regex: /create.*implement.*test|build.*test|write.*test/gi,
+  const sequencePatterns = new Map([
+    ['create-implement-test', { 
+      pattern: 'create.*implement.*test|build.*test|write.*test',
       desc: 'Create → Implement → Test workflow'
-    },
-    'debug-analyze-fix': { 
-      regex: /debug|fix|error|bug|issue/gi,
+    }],
+    ['debug-analyze-fix', { 
+      pattern: 'debug|fix|error|bug|issue',
       desc: 'Debug → Analyze → Fix workflow'
-    },
-    'plan-design-code': { 
-      regex: /plan|design|architect.*code|implement/gi,
+    }],
+    ['plan-design-code', { 
+      pattern: 'plan|design|architect.*code|implement',
       desc: 'Plan → Design → Code workflow'
-    },
-    'refactor-optimize': { 
-      regex: /refactor|optimize|improve|clean.*code/gi,
+    }],
+    ['refactor-optimize', { 
+      pattern: 'refactor|optimize|improve|clean.*code',
       desc: 'Refactor → Optimize workflow'
-    },
-    'learn-practice-apply': { 
-      regex: /learn|understand|practice|apply|example/gi,
+    }],
+    ['learn-practice-apply', { 
+      pattern: 'learn|understand|practice|apply|example',
       desc: 'Learn → Practice → Apply workflow'
-    }
-  };
+    }]
+  ]);
 
-  Object.entries(sequencePatterns).forEach(([seqName, { regex, desc }]) => {
-    if (regex.test(lowerPrompt)) {
-      sequences.push({
-        name: seqName,
-        description: desc
-      });
+  // Convert to patterns map for batch testing
+  const patternsMap = new Map<string, string>();
+  for (const [name, { pattern }] of sequencePatterns.entries()) {
+    patternsMap.set(name, pattern);
+  }
+
+  // Use batch testing for optimal performance
+  const batchResult = globalRegexCache.batchTest(patternsMap, lowerPrompt);
+  
+  for (const [seqName, result] of batchResult.results.entries()) {
+    if (result.matched) {
+      const seqInfo = sequencePatterns.get(seqName);
+      if (seqInfo) {
+        sequences.push({
+          name: seqName,
+          description: seqInfo.desc
+        });
+      }
     }
-  });
+  }
 
   return sequences;
 }
@@ -484,6 +598,12 @@ function displaySequencePatterns(patterns: any[]): void {
   console.log(table.toString());
 }
 
+/**
+ * Exports pattern analysis to various file formats
+ * @param analysis - PatternAnalysis object to export
+ * @param options - Export options including output file path
+ * @throws Error if file writing fails or format is unsupported
+ */
 async function exportPatternAnalysis(analysis: PatternAnalysis, options: any): Promise<void> {
   const fs = await import('fs');
   const path = await import('path');
@@ -600,4 +720,198 @@ function convertAnalysisToMarkdown(analysis: PatternAnalysis): string {
   }
   
   return md;
+}
+
+/**
+ * Displays pattern analysis with pagination support
+ * @param analysis - PatternAnalysis object to display
+ * @param options - Command options including pagination settings
+ */
+async function displayPaginatedPatternAnalysis(analysis: PatternAnalysis, options: any): Promise<void> {
+  const display = new PaginatedDisplay({
+    showControls: true,
+    showMetrics: true,
+    showProgress: false,
+    theme: 'default'
+  });
+
+  // Convert analysis to flat array for pagination
+  const allPatterns = [
+    ...analysis.codingPatterns.map(p => ({ type: 'coding', ...p })),
+    ...analysis.topicPatterns.map(p => ({ type: 'topic', ...p })),
+    ...analysis.languagePatterns.map(p => ({ type: 'language', ...p })),
+    ...analysis.timePatterns.map(p => ({ type: 'time', ...p })),
+    ...analysis.sequencePatterns.map(p => ({ type: 'sequence', ...p }))
+  ];
+
+  const pageSize = parseInt(options.pageSize);
+  const currentPage = Math.max(0, parseInt(options.page) - 1); // Convert to 0-based
+
+  // Create stream processor for pagination
+  const processor = new StreamProcessor<any, any>(
+    async (items: any[]) => items, // Identity function for patterns
+    { chunkSize: pageSize }
+  );
+
+  const result = await processor.processPaginated(allPatterns, {
+    pageSize,
+    currentPage,
+    useCursor: false
+  });
+
+  // Custom formatter for pattern display
+  const formatter = (items: any[]) => {
+    let output = '';
+    
+    // Group items by type for display
+    const groupedItems = items.reduce((groups, item) => {
+      if (!groups[item.type]) groups[item.type] = [];
+      groups[item.type].push(item);
+      return groups;
+    }, {} as Record<string, any[]>);
+
+    Object.entries(groupedItems).forEach(([type, patterns]) => {
+      if (Array.isArray(patterns)) {
+        output += displayPatternGroup(type, patterns);
+      }
+    });
+
+    return output;
+  };
+
+  const navigation = {
+    nextCommand: result.pagination.hasNextPage ? 
+      `claude-prompter patterns --page ${currentPage + 2} --page-size ${pageSize}` : undefined,
+    prevCommand: result.pagination.hasPreviousPage ? 
+      `claude-prompter patterns --page ${currentPage} --page-size ${pageSize}` : undefined,
+    jumpCommand: `claude-prompter patterns --page <page> --page-size ${pageSize}`,
+    helpText: 'Use --stream for large datasets or --no-pagination to show all results'
+  };
+
+  display.displayPaginated(result, formatter, navigation);
+}
+
+/**
+ * Displays pattern analysis with streaming support
+ * @param analysis - PatternAnalysis object to display
+ * @param options - Command options including streaming settings
+ */
+async function displayStreamedPatternAnalysis(analysis: PatternAnalysis, _options: any): Promise<void> {
+  const display = new PaginatedDisplay({
+    showControls: false,
+    showMetrics: true,
+    showProgress: true,
+    theme: 'default'
+  });
+
+  // Convert analysis to flat array for streaming
+  const allPatterns = [
+    ...analysis.codingPatterns.map(p => ({ type: 'coding', ...p })),
+    ...analysis.topicPatterns.map(p => ({ type: 'topic', ...p })),
+    ...analysis.languagePatterns.map(p => ({ type: 'language', ...p })),
+    ...analysis.timePatterns.map(p => ({ type: 'time', ...p })),
+    ...analysis.sequencePatterns.map(p => ({ type: 'sequence', ...p }))
+  ];
+
+  // Create progress indicator
+  const progressUpdate = display.createProgressIndicator(allPatterns.length);
+
+  // Create stream processor
+  const processor = new StreamProcessor<any, any>(
+    async (items: any[]) => {
+      // Simulate processing with progress updates
+      items.forEach((_, index) => {
+        progressUpdate(index + 1);
+      });
+      return items;
+    },
+    { 
+      chunkSize: 25,
+      concurrencyLimit: 2,
+      enableStreaming: true
+    }
+  );
+
+  const result = await processor.processStream(allPatterns);
+
+  // Custom formatter for stream display
+  const formatter = (items: any[]) => {
+    let output = '';
+    
+    // Group items by type for display
+    const groupedItems = items.reduce((groups, item) => {
+      if (!groups[item.type]) groups[item.type] = [];
+      groups[item.type].push(item);
+      return groups;
+    }, {} as Record<string, any[]>);
+
+    Object.entries(groupedItems).forEach(([type, patterns]) => {
+      if (Array.isArray(patterns)) {
+        output += displayPatternGroup(type, patterns);
+      }
+    });
+
+    return output;
+  };
+
+  display.displayStream(result, formatter);
+}
+
+/**
+ * Displays a group of patterns by type
+ * @param type - Pattern type
+ * @param patterns - Array of patterns
+ * @returns Formatted output string
+ */
+function displayPatternGroup(type: string, patterns: any[]): string {
+  if (patterns.length === 0) return '';
+
+  let output = '\n';
+  
+  // Type-specific headers and formatting
+  switch (type) {
+    case 'coding':
+      output += chalk.bold('💻 Coding Patterns\n');
+      break;
+    case 'topic':
+      output += chalk.bold('📚 Topic Patterns\n');
+      break;
+    case 'language':
+      output += chalk.bold('🔤 Language Patterns\n');
+      break;
+    case 'time':
+      output += chalk.bold('⏰ Time Patterns\n');
+      break;
+    case 'sequence':
+      output += chalk.bold('🔄 Workflow Patterns\n');
+      break;
+  }
+
+  patterns.forEach((pattern, index) => {
+    const prefix = index === patterns.length - 1 ? '└──' : '├──';
+    
+    if (type === 'coding') {
+      output += chalk.gray(prefix) + chalk.cyan(` ${pattern.pattern}`) + 
+                chalk.gray(` (${pattern.frequency}×) - `) + 
+                chalk.white(pattern.examples?.join(', ') || 'No examples') + '\n';
+    } else if (type === 'topic') {
+      output += chalk.gray(prefix) + chalk.cyan(` ${pattern.topic}`) + 
+                chalk.gray(` (${pattern.frequency}×) - `) + 
+                chalk.white(`${pattern.sessions?.length || 0} sessions`) + '\n';
+    } else if (type === 'language') {
+      output += chalk.gray(prefix) + chalk.cyan(` ${pattern.language}`) + 
+                chalk.gray(` (${pattern.frequency}×) - `) + 
+                chalk.white(pattern.contexts?.join(', ') || 'No contexts') + '\n';
+    } else if (type === 'time') {
+      output += chalk.gray(prefix) + chalk.cyan(` ${pattern.hour}:00`) + 
+                chalk.gray(' - ') + 
+                chalk.white(`${pattern.activity} activities`) + '\n';
+    } else if (type === 'sequence') {
+      output += chalk.gray(prefix) + chalk.cyan(` ${pattern.sequence}`) + 
+                chalk.gray(` (${pattern.frequency}×) - `) + 
+                chalk.white(pattern.description) + '\n';
+    }
+  });
+
+  return output;
 }

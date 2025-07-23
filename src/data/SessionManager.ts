@@ -8,15 +8,62 @@ import {
   Decision,
   TrackedIssue 
 } from '../types/session.types';
+import { 
+  LazySessionData, 
+  LazyLoadOptions, 
+  CacheConfiguration, 
+  SessionMetadataCache,
+  CacheStats 
+} from '../types/cache.types';
+import { SessionCacheManager } from './SessionCacheManager';
+import { LazySessionLoader } from './LazySessionLoader';
 
 export class SessionManager {
   private sessionDirectory: string;
   private currentSessionId: string | null = null;
+  private cacheManager: SessionCacheManager;
+  private lazyLoader: LazySessionLoader;
+  private config: CacheConfiguration;
+  private enableLazyLoading: boolean;
 
-  constructor() {
+  constructor(options?: { 
+    enableLazyLoading?: boolean; 
+    cacheConfig?: Partial<CacheConfiguration> 
+  }) {
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
     this.sessionDirectory = path.join(homeDir, '.claude-prompter', 'sessions');
     this.ensureDirectoryExists();
+    
+    // Configuration
+    this.enableLazyLoading = options?.enableLazyLoading ?? true;
+    this.config = {
+      maxSessionDataCacheSize: 20,
+      maxMetadataCacheAge: 5 * 60 * 1000, // 5 minutes
+      concurrentFileReads: 5,
+      forceRebuildThreshold: 100,
+      enableFilesystemWatcher: true,
+      cacheFileName: '.metadata-cache.json',
+      ...options?.cacheConfig
+    };
+    
+    // Initialize caching system if enabled
+    if (this.enableLazyLoading) {
+      this.cacheManager = new SessionCacheManager(this.sessionDirectory, this.config);
+      this.lazyLoader = new LazySessionLoader(this.cacheManager, this.sessionDirectory, this.config);
+      this.initializeCache();
+    }
+  }
+
+  private async initializeCache(): Promise<void> {
+    if (this.cacheManager) {
+      try {
+        await this.cacheManager.initialize();
+      } catch (error) {
+        console.warn('Failed to initialize session cache:', error);
+        // Continue without caching if initialization fails
+        this.enableLazyLoading = false;
+      }
+    }
   }
 
   private ensureDirectoryExists(): void {
@@ -61,6 +108,49 @@ export class SessionManager {
   }
 
   public async loadSession(sessionId: string): Promise<Session | null> {
+    if (this.enableLazyLoading && this.lazyLoader) {
+      // Use lazy loading for better performance
+      const lazyData = await this.lazyLoader.loadSessionLazy(sessionId, {
+        includeHistory: true,
+        includeContext: true
+      });
+      
+      if (!lazyData || !lazyData.history || !lazyData.context) {
+        return null;
+      }
+      
+      // Convert lazy data back to full session format
+      const session: Session = {
+        metadata: {
+          sessionId: lazyData.metadata.sessionId,
+          projectName: lazyData.metadata.projectName,
+          createdDate: lazyData.metadata.createdDate,
+          lastAccessed: new Date(), // Update access time
+          status: lazyData.metadata.status,
+          description: lazyData.metadata.description,
+          tags: lazyData.metadata.tags
+        },
+        history: lazyData.history,
+        context: lazyData.context
+      };
+      
+      // Update metadata cache with new access time
+      if (this.cacheManager) {
+        await this.cacheManager.updateSessionMetadata(sessionId, {
+          lastAccessed: new Date()
+        });
+      }
+      
+      this.currentSessionId = sessionId;
+      return session;
+    } else {
+      // Fallback to legacy loading
+      return this.loadSessionLegacy(sessionId);
+    }
+  }
+
+  // Legacy loading method for backward compatibility
+  private async loadSessionLegacy(sessionId: string): Promise<Session | null> {
     const sessionPath = this.getSessionPath(sessionId);
     
     try {
@@ -88,6 +178,11 @@ export class SessionManager {
       sessionPath, 
       JSON.stringify(session, null, 2)
     );
+    
+    // Invalidate cache entry to ensure fresh data on next load
+    if (this.enableLazyLoading && this.cacheManager) {
+      await this.cacheManager.invalidateSessionCache(session.metadata.sessionId);
+    }
   }
 
   public async addConversationEntry(
@@ -116,13 +211,42 @@ export class SessionManager {
   }
 
   public async listSessions(): Promise<SessionSummary[]> {
+    if (this.enableLazyLoading && this.cacheManager) {
+      // Use fast metadata cache for listing
+      return this.listSessionsFromCache();
+    } else {
+      // Fallback to legacy loading
+      return this.listSessionsLegacy();
+    }
+  }
+
+  // Fast session listing using metadata cache
+  public async listSessionsFromCache(): Promise<SessionSummary[]> {
+    if (!this.cacheManager) {
+      throw new Error('Cache manager not initialized');
+    }
+
+    const metadataList = await this.cacheManager.getAllSessionMetadata();
+    return metadataList.map(metadata => ({
+      sessionId: metadata.sessionId,
+      projectName: metadata.projectName,
+      createdDate: metadata.createdDate,
+      lastAccessed: metadata.lastAccessed,
+      conversationCount: metadata.conversationCount,
+      status: metadata.status,
+      tags: metadata.tags
+    }));
+  }
+
+  // Legacy session listing for backward compatibility
+  private async listSessionsLegacy(): Promise<SessionSummary[]> {
     const files = await fsPromises.readdir(this.sessionDirectory);
     const sessions: SessionSummary[] = [];
 
     for (const file of files) {
-      if (file.endsWith('.json')) {
+      if (file.endsWith('.json') && !file.startsWith('.')) {
         const sessionId = file.replace('.json', '');
-        const session = await this.loadSession(sessionId);
+        const session = await this.loadSessionLegacy(sessionId);
         if (session) {
           sessions.push({
             sessionId: session.metadata.sessionId,
@@ -289,5 +413,202 @@ export class SessionManager {
     }
 
     return markdown;
+  }
+
+  // ========== NEW LAZY LOADING METHODS ==========
+
+  /**
+   * Loads session with lazy loading options (NEW)
+   */
+  public async loadSessionLazy(sessionId: string, options: LazyLoadOptions = {}): Promise<LazySessionData | null> {
+    if (!this.enableLazyLoading || !this.lazyLoader) {
+      throw new Error('Lazy loading is not enabled');
+    }
+    return this.lazyLoader.loadSessionLazy(sessionId, options);
+  }
+
+  /**
+   * Gets session metadata without loading full content (NEW)
+   */
+  public async getSessionMetadata(sessionId: string): Promise<SessionMetadataCache | null> {
+    if (!this.enableLazyLoading || !this.cacheManager) {
+      throw new Error('Lazy loading is not enabled');
+    }
+    return this.cacheManager.getSessionMetadata(sessionId);
+  }
+
+  /**
+   * Searches session metadata only (fast) (NEW)
+   */
+  public async searchSessionMetadata(query: string): Promise<SessionSummary[]> {
+    if (!this.enableLazyLoading || !this.cacheManager) {
+      // Fallback to legacy search
+      return this.searchSessions(query);
+    }
+
+    const metadataResults = await this.cacheManager.searchMetadata(query);
+    return metadataResults.map(metadata => ({
+      sessionId: metadata.sessionId,
+      projectName: metadata.projectName,
+      createdDate: metadata.createdDate,
+      lastAccessed: metadata.lastAccessed,
+      conversationCount: metadata.conversationCount,
+      status: metadata.status,
+      tags: metadata.tags
+    }));
+  }
+
+  /**
+   * Gets sessions by project name (fast) (NEW)
+   */
+  public async getSessionsByProject(projectName: string): Promise<SessionSummary[]> {
+    if (!this.enableLazyLoading || !this.cacheManager) {
+      // Fallback to filtering all sessions
+      const allSessions = await this.listSessions();
+      return allSessions.filter(s => s.projectName.toLowerCase().includes(projectName.toLowerCase()));
+    }
+
+    const allMetadata = await this.cacheManager.getAllSessionMetadata();
+    return allMetadata
+      .filter(metadata => metadata.projectName.toLowerCase().includes(projectName.toLowerCase()))
+      .map(metadata => ({
+        sessionId: metadata.sessionId,
+        projectName: metadata.projectName,
+        createdDate: metadata.createdDate,
+        lastAccessed: metadata.lastAccessed,
+        conversationCount: metadata.conversationCount,
+        status: metadata.status,
+        tags: metadata.tags
+      }));
+  }
+
+  /**
+   * Loads session history only (NEW)
+   */
+  public async loadSessionHistory(sessionId: string, options?: LazyLoadOptions): Promise<ConversationEntry[]> {
+    if (!this.enableLazyLoading || !this.lazyLoader) {
+      // Fallback to loading full session
+      const session = await this.loadSession(sessionId);
+      return session?.history || [];
+    }
+    return this.lazyLoader.loadSessionHistory(sessionId, options);
+  }
+
+  /**
+   * Loads session context only (NEW)
+   */
+  public async loadSessionContext(sessionId: string): Promise<Session['context']> {
+    if (!this.enableLazyLoading || !this.lazyLoader) {
+      // Fallback to loading full session
+      const session = await this.loadSession(sessionId);
+      return session?.context || { variables: {}, decisions: [], trackedIssues: [] };
+    }
+    return this.lazyLoader.loadSessionContext(sessionId);
+  }
+
+  /**
+   * Rebuilds metadata cache (NEW)
+   */
+  public async rebuildMetadataCache(): Promise<void> {
+    if (!this.enableLazyLoading || !this.cacheManager) {
+      throw new Error('Lazy loading is not enabled');
+    }
+    await this.cacheManager.rebuildCache();
+  }
+
+  /**
+   * Gets cache performance statistics (NEW)
+   */
+  public async getCacheStats(): Promise<CacheStats> {
+    if (!this.enableLazyLoading || !this.cacheManager) {
+      throw new Error('Lazy loading is not enabled');
+    }
+
+    const cacheStats = await this.cacheManager.getCacheStats();
+    const loaderStats = this.lazyLoader?.getCacheStats() || {
+      size: 0,
+      hitRate: 0,
+      averageLoadTime: 0,
+      estimatedMemoryUsage: 0
+    };
+
+    return {
+      ...cacheStats,
+      sessionDataCacheSize: loaderStats.size,
+      cacheHitRate: loaderStats.hitRate,
+      averageLoadTime: loaderStats.averageLoadTime,
+      estimatedMemoryUsage: cacheStats.estimatedMemoryUsage + loaderStats.estimatedMemoryUsage
+    };
+  }
+
+  /**
+   * Optimizes cache performance (NEW)
+   */
+  public async optimizeCache(): Promise<{ 
+    metadataCleanedUp: number; 
+    sessionDataEvicted: number; 
+  }> {
+    if (!this.enableLazyLoading || !this.cacheManager || !this.lazyLoader) {
+      throw new Error('Lazy loading is not enabled');
+    }
+
+    const metadataCleanedUp = await this.cacheManager.cleanupStaleEntries();
+    const sessionDataEvicted = this.lazyLoader.optimizeCache();
+
+    return { metadataCleanedUp, sessionDataEvicted };
+  }
+
+  /**
+   * Preloads sessions into cache for better performance (NEW)
+   */
+  public async preloadSessions(sessionIds: string[], options: LazyLoadOptions = {}): Promise<void> {
+    if (!this.enableLazyLoading || !this.lazyLoader) {
+      throw new Error('Lazy loading is not enabled');
+    }
+    await this.lazyLoader.preloadSessions(sessionIds, options);
+  }
+
+  /**
+   * Checks if lazy loading is enabled (NEW)
+   */
+  public isLazyLoadingEnabled(): boolean {
+    return this.enableLazyLoading;
+  }
+
+  /**
+   * Enhanced search with both metadata and content search (NEW)
+   */
+  public async searchSessionsEnhanced(query: string): Promise<SessionSummary[]> {
+    if (!this.enableLazyLoading || !this.cacheManager || !this.lazyLoader) {
+      // Fallback to legacy search
+      return this.searchSessions(query);
+    }
+
+    // Phase 1: Fast metadata search
+    const metadataResults = await this.searchSessionMetadata(query);
+    
+    // Phase 2: Content search only if metadata search yields few results
+    if (metadataResults.length < 10) {
+      const allSessionIds = (await this.listSessionsFromCache()).map(s => s.sessionId);
+      const contentResults = await this.lazyLoader.searchSessionContent(allSessionIds, query);
+      
+      // Merge results (avoid duplicates)
+      const existingIds = new Set(metadataResults.map(r => r.sessionId));
+      const additionalResults = contentResults
+        .filter(r => !existingIds.has(r.sessionId))
+        .map(r => ({
+          sessionId: r.sessionId,
+          projectName: r.metadata.projectName,
+          createdDate: r.metadata.createdDate,
+          lastAccessed: r.metadata.lastAccessed,
+          conversationCount: r.metadata.conversationCount,
+          status: r.metadata.status,
+          tags: r.metadata.tags
+        }));
+      
+      return [...metadataResults, ...additionalResults];
+    }
+    
+    return metadataResults;
   }
 }

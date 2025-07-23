@@ -19,6 +19,7 @@ export interface SessionMetadata {
   description?: string;
   tags?: string[];
   status: 'active' | 'archived' | 'completed';
+  fileSize?: number;
 }
 
 export interface Session {
@@ -30,6 +31,8 @@ export interface Session {
     decisions?: Decision[];
     trackedIssues?: TrackedIssue[];
   };
+  languages?: string[];
+  patterns?: string[];
 }
 
 export interface Decision {

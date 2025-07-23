@@ -314,8 +314,8 @@ claude-prompter memory init
 # Start learning-enhanced session
 claude-prompter chat --ultra-learning
 
-# View learning dashboard
-claude-prompter dashboard
+# View learning analytics
+claude-prompter stats --detailed
 ```
 
 This ultra-learning system transforms claude-prompter from a tool into a continuously evolving AI partner that gets better with every interaction.

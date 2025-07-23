@@ -87,12 +87,12 @@ Example:
   --task-type backend-service \
   --claude-analysis
 
-# Working on UI components
+# Working on CLI tools
 /Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest \
-  -t "Agent status dashboard component" \
-  --code -l react \
+  -t "CLI analytics and reporting system" \
+  --code -l typescript \
   --complexity moderate \
-  --task-type ui-component \
+  --task-type cli-tool \
   --claude-analysis
 
 # Planning complex features
