@@ -28,6 +28,10 @@ Thumbs.db
 logs/
 usage-report-*.json
 
+# Test coverage reports
+coverage/
+*.lcov
+
 # Temp and backup
 *.backup
 *.tmp
