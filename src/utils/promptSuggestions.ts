@@ -13,7 +13,7 @@ export interface PromptSuggestion {
   title: string;
   prompt: string;
   context?: string;
-  category: 'follow-up' | 'clarification' | 'deep-dive' | 'alternative' | 'implementation';
+  category: 'follow-up' | 'clarification' | 'deep-dive' | 'alternative' | 'implementation' | 'workflow';
   rationale: string;
 }
 
@@ -187,7 +187,8 @@ export function formatSuggestionsForCLI(suggestions: PromptSuggestion[]): string
     'clarification': personality.mode === 'allmight' ? '🎓' : '❓',
     'deep-dive': personality.mode === 'allmight' ? '🔥' : '🔍',
     'alternative': personality.mode === 'allmight' ? '⚡' : '🔀',
-    'implementation': personality.mode === 'allmight' ? '🦸' : '🛠️'
+    'implementation': personality.mode === 'allmight' ? '🦸' : '🛠️',
+    'workflow': personality.mode === 'allmight' ? '🚀' : '🔗'
   };
   
   const categoryTitles = {
@@ -195,7 +196,8 @@ export function formatSuggestionsForCLI(suggestions: PromptSuggestion[]): string
     'clarification': 'Clarification',
     'deep-dive': 'Deep Dive',
     'alternative': 'Alternative Approaches',
-    'implementation': 'Implementation Help'
+    'implementation': 'Implementation Help',
+    'workflow': 'Subagent Workflows'
   };
   
   Object.entries(grouped).forEach(([category, sugs]) => {
@@ -335,6 +337,41 @@ export function generateClaudePromptSuggestions(
     rationale: 'Avoid common errors'
   });
   
+  // Add some subagent workflow suggestions when code is generated
+  if (analysis.codeGenerated) {
+    suggestions.push({
+      id: 'workflow-quick-review',
+      title: 'Quick Quality Chain 🔍 → 🧪',
+      prompt: 'Use the code-reviewer to analyze this code, then use the test-generator to create comprehensive tests',
+      category: 'workflow',
+      rationale: 'Quick quality assurance workflow (30-40 minutes)'
+    });
+  }
+  
+  // Add security workflow for sensitive topics
+  if (topic.toLowerCase().includes('security') || topic.toLowerCase().includes('auth') || 
+      topic.toLowerCase().includes('payment') || topic.toLowerCase().includes('login')) {
+    suggestions.push({
+      id: 'workflow-security-first',
+      title: 'Security-First Workflow 🔒 → 🔍 → 🧪',
+      prompt: 'Use the security-analyst to audit for vulnerabilities, then the code-reviewer to ensure secure coding practices, and finally the test-generator to create security tests',
+      category: 'workflow',
+      rationale: 'Comprehensive security validation (50-70 minutes)'
+    });
+  }
+  
+  // Add performance workflow for performance-related topics
+  if (topic.toLowerCase().includes('performance') || topic.toLowerCase().includes('slow') || 
+      topic.toLowerCase().includes('optimize') || topic.toLowerCase().includes('speed')) {
+    suggestions.push({
+      id: 'workflow-performance',
+      title: 'Performance Optimization Chain ⚡ → 🔍',
+      prompt: 'Use the performance-optimizer to identify bottlenecks, then use the code-reviewer to suggest optimizations',
+      category: 'workflow',
+      rationale: 'Performance-focused improvement workflow (45-60 minutes)'
+    });
+  }
+  
   return suggestions;
 }
 
@@ -440,6 +477,17 @@ export function generateLearningAwareSuggestions(
         rationale: `🔄 Leveraging your multi-language experience`
       });
     }
+  }
+  
+  // Add learning-aware workflow suggestions
+  if (learningContext.sessionCount >= 5) {
+    suggestions.push({
+      id: 'learning-workflow',
+      title: `Expert Workflow Chain 🔍 → 🔒 → 🧪 → ⚡`,
+      prompt: `After ${learningContext.sessionCount} sessions, you're ready for a comprehensive workflow: use the code-reviewer for quality analysis, the security-analyst for security audit, the test-generator for comprehensive testing, and the performance-optimizer for optimization`,
+      category: 'workflow',
+      rationale: `Advanced workflow based on your ${learningContext.sessionCount}-session experience`
+    });
   }
   
   // Always include core suggestions, but prioritize learning-based ones

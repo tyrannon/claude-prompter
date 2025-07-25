@@ -16,6 +16,11 @@ import {
   ConversationContext,
   LearningContext
 } from './utils/promptSuggestions';
+import {
+  generateSubagentWorkflowSuggestions,
+  generateContextualWorkflowSuggestions,
+  analyzeTopicForWorkflows
+} from './utils/subagentWorkflows';
 import { setPersonality, PersonalityMode } from './utils/personalitySystem';
 import { createSessionCommand } from './commands/session';
 import { createTemplateCommand } from './commands/template';
@@ -171,6 +176,7 @@ program
   .option('--claude-analysis', 'Generate suggestions as if Claude analyzed the output')
   .option('--show-growth', 'Show learning progress and growth-based suggestions')
   .option('--sessions <number>', 'Number of recent sessions to analyze for learning', '10')
+  .option('--subagent-chains', 'Generate Claude Code subagent workflow chain suggestions')
   .option('--personality <mode>', 'Personality mode: default, allmight, formal, casual', 'default')
   .action(async (options) => {
     if (!options.topic) {
@@ -259,7 +265,35 @@ program
       }
       
       // Generate suggestions based on analysis type and learning context
-      if (options.showGrowth && learningContext) {
+      if (options.subagentChains) {
+        // Generate subagent workflow chain suggestions
+        const workflowSuggestions = generateSubagentWorkflowSuggestions(options.topic, {
+          codeGenerated: options.code,
+          language: options.language,
+          complexity: options.complexity,
+          taskType: options.taskType
+        });
+        
+        // Add contextual workflow suggestions if learning context is available
+        const contextualSuggestions = learningContext 
+          ? generateContextualWorkflowSuggestions(
+              options.topic,
+              [], // Session history would be extracted from learningContext
+              learningContext.commonPatterns
+            )
+          : [];
+        
+        suggestions = [...workflowSuggestions, ...contextualSuggestions];
+        
+        // Also analyze topic for workflow recommendations
+        const workflowAnalysis = analyzeTopicForWorkflows(options.topic);
+        if (workflowAnalysis.confidence > 50) {
+          console.log(chalk.blue('\n🎯 Workflow Analysis:'));
+          console.log(chalk.gray(`   ${workflowAnalysis.reasoning}`));
+          console.log(chalk.yellow(`   Confidence: ${workflowAnalysis.confidence}%\n`));
+        }
+        
+      } else if (options.showGrowth && learningContext) {
         suggestions = generateLearningAwareSuggestions(options.topic, {
           codeGenerated: options.code,
           language: options.language,
@@ -295,23 +329,45 @@ program
       // Personality-aware title
       let title;
       if (options.personality === 'allmight') {
-        title = options.showGrowth ? '🦸 HERO TRAINING SUGGESTIONS - PLUS ULTRA!' : '💪 MIGHTY PROMPT SUGGESTIONS';
+        title = options.subagentChains ? '🦸 HEROIC SUBAGENT WORKFLOWS - PLUS ULTRA!' :
+                options.showGrowth ? '🦸 HERO TRAINING SUGGESTIONS - PLUS ULTRA!' : '💪 MIGHTY PROMPT SUGGESTIONS';
       } else {
-        title = options.showGrowth ? '🌱 Learning-Aware Prompt Suggestions' : '💡 Prompt Suggestions';
+        title = options.subagentChains ? '🔗 Subagent Workflow Chain Suggestions' :
+                options.showGrowth ? '🌱 Learning-Aware Prompt Suggestions' : '💡 Prompt Suggestions';
       }
       
       console.log(formatResponse(output, title));
       
       // Personality-aware usage instructions
       if (options.personality === 'allmight') {
-        console.log(chalk.bold.yellow('\n⚡ TO USE A HERO SUGGESTION:'));
-        console.log(chalk.bold.cyan('COPY THE PROMPT AND UNLEASH: claude-prompter prompt -m "prompt" --send --personality allmight\n'));
+        if (options.subagentChains) {
+          console.log(chalk.bold.yellow('\n⚡ TO UNLEASH HEROIC SUBAGENT POWER:'));
+          console.log(chalk.bold.cyan('1. COPY THE WORKFLOW PROMPT'));
+          console.log(chalk.bold.cyan('2. USE: echo "[WORKFLOW PROMPT]" | claude-code'));
+          console.log(chalk.bold.yellow('3. WATCH THE SUBAGENT HEROES WORK TOGETHER! PLUS ULTRA!\n'));
+        } else {
+          console.log(chalk.bold.yellow('\n⚡ TO USE A HERO SUGGESTION:'));
+          console.log(chalk.bold.cyan('COPY THE PROMPT AND UNLEASH: claude-prompter prompt -m "prompt" --send --personality allmight\n'));
+        }
       } else {
-        console.log(chalk.cyan('\n✨ To use a suggestion:'));
-        console.log(chalk.gray('Copy the prompt and use: claude-prompter prompt -m "prompt" --send\n'));
+        if (options.subagentChains) {
+          console.log(chalk.cyan('\n🔗 To execute a subagent workflow:'));
+          console.log(chalk.gray('1. Copy the workflow prompt'));
+          console.log(chalk.gray('2. Use: echo "[workflow prompt]" | claude-code'));
+          console.log(chalk.gray('3. The subagents will execute in sequence automatically\n'));
+        } else {
+          console.log(chalk.cyan('\n✨ To use a suggestion:'));
+          console.log(chalk.gray('Copy the prompt and use: claude-prompter prompt -m "prompt" --send\n'));
+        }
       }
       
-      if (options.showGrowth && learningContext?.sessionCount > 0) {
+      if (options.subagentChains) {
+        if (options.personality === 'allmight') {
+          console.log(chalk.bold.yellow('🔥 HERO FACT: SUBAGENT WORKFLOWS CREATE UNSTOPPABLE TEAM POWER! COMBINE MULTIPLE HEROES FOR MAXIMUM IMPACT!'));
+        } else {
+          console.log(chalk.yellow('🎯 Workflow tip: Subagent chains combine specialized expertise for comprehensive solutions!'));
+        }
+      } else if (options.showGrowth && learningContext?.sessionCount > 0) {
         if (options.personality === 'allmight') {
           console.log(chalk.bold.yellow(`🔥 HERO FACT: THESE MIGHTY SUGGESTIONS ARE FORGED FROM YOUR ${learningContext.sessionCount} TRAINING SESSIONS! GO BEYOND!`));
         } else {
