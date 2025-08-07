@@ -1,0 +1,21 @@
+{
+  "runId": "me1t058m-5jkl5",
+  "timestamp": "2025-08-07T19:42:29.773Z",
+  "prompt": "List 3 key benefits of hybrid AI systems",
+  "engines": [
+    "gpt-4o-mini",
+    "tinyllama:latest"
+  ],
+  "config": {
+    "strategy": "folders",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 2,
+    "errorCount": 0,
+    "totalExecutionTime": 6553
+  }
+}

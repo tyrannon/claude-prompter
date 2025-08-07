@@ -1,0 +1,21 @@
+{
+  "runId": "me1uj899-x2g9c",
+  "timestamp": "2025-08-07T20:25:23.610Z",
+  "prompt": "Test performance metrics collection: What are the key benefits of using TypeScript for large-scale applications?",
+  "engines": [
+    "tinyllama",
+    "gpt-4o-mini"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 2,
+    "errorCount": 0,
+    "totalExecutionTime": 11894
+  }
+}

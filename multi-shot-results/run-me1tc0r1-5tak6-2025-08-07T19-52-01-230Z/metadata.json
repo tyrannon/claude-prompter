@@ -1,0 +1,22 @@
+{
+  "runId": "me1tc0r1-5tak6",
+  "timestamp": "2025-08-07T19:52:01.230Z",
+  "prompt": "As lead developer of ClaudePrompter, analyze our multi-shot testing findings: Local models (TinyLlama) achieved 70-80% quality at 0 cost with 2x speed, GPT-4o-mini provides 90% quality at 1/3 cost, and GPT-4o gives maximum quality at full cost. What are the top 3 implementation priorities and strategic decisions we should make based on these findings?",
+  "engines": [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "tinyllama:latest"
+  ],
+  "config": {
+    "strategy": "folders",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 3,
+    "successCount": 3,
+    "errorCount": 0,
+    "totalExecutionTime": 35104
+  }
+}

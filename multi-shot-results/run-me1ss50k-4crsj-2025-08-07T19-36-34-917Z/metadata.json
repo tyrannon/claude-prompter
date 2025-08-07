@@ -1,0 +1,21 @@
+{
+  "runId": "me1ss50k-4crsj",
+  "timestamp": "2025-08-07T19:36:34.917Z",
+  "prompt": "Analyze the Qwen3 hybrid AI integration strategy for ClaudePrompter. Based on the CLAUDE.md roadmap, this would add local processing with Ollama to reduce API costs by 60-80% while maintaining quality. What are the key implementation priorities, potential challenges, and success metrics for this hybrid approach?",
+  "engines": [
+    "gpt-4o",
+    "gpt-4o-mini"
+  ],
+  "config": {
+    "strategy": "folders",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 2,
+    "errorCount": 0,
+    "totalExecutionTime": 41544
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "runId": "me1unmlj-p746h",
+  "timestamp": "2025-08-07T20:28:41.602Z",
+  "prompt": "How can we implement intelligent model routing in ClaudePrompter?",
+  "engines": [
+    "tinyllama",
+    "gpt-4o-mini"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 0,
+    "errorCount": 2,
+    "totalExecutionTime": 0
+  }
+}

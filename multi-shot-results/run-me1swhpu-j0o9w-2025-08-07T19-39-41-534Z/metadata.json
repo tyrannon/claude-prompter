@@ -1,0 +1,20 @@
+{
+  "runId": "me1swhpu-j0o9w",
+  "timestamp": "2025-08-07T19:39:41.534Z",
+  "prompt": "What are the top 3 implementation priorities for adding Qwen3 local model support to ClaudePrompter?",
+  "engines": [
+    "gpt-4o-mini"
+  ],
+  "config": {
+    "strategy": "folders",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 1,
+    "successCount": 1,
+    "errorCount": 0,
+    "totalExecutionTime": 6510
+  }
+}
