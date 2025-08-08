@@ -37,6 +37,7 @@ import { createPatternsCommand } from './commands/patterns';
 import { createMigrateCommand } from './commands/migrate';
 import { createMultishotCommand } from './commands/multishot';
 import { createAnalyticsCommand } from './commands/analytics';
+import { createABTestCommand } from './commands/abtest';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -403,6 +404,7 @@ program.addCommand(createPatternsCommand());
 program.addCommand(createMigrateCommand());
 program.addCommand(createMultishotCommand());
 program.addCommand(createAnalyticsCommand());
+program.addCommand(createABTestCommand());
 
 program
   .command('config')

@@ -4,12 +4,16 @@
 
 export interface EngineConfig {
   name: string;
-  model: string;
+  model?: string;
   apiKey?: string;
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
   timeout?: number;
+  modelVariant?: string;
+  enableABTesting?: boolean;
+  preferredModel?: string;
+  fallbackModel?: string;
 }
 
 export interface PromptRequest {
@@ -65,8 +69,8 @@ export abstract class BaseEngine {
    * Validate configuration before execution
    */
   protected validateConfig(): void {
-    if (!this.config.name || !this.config.model) {
-      throw new Error('Engine configuration must include name and model');
+    if (!this.config.name) {
+      throw new Error('Engine configuration must include name');
     }
   }
 
@@ -76,7 +80,7 @@ export abstract class BaseEngine {
   protected createErrorResponse(error: string, startTime: Date): EngineResponse {
     return {
       content: '',
-      model: this.config.model,
+      model: this.config.model || 'unknown',
       engine: this.config.name,
       timestamp: new Date(),
       executionTime: Date.now() - startTime.getTime(),

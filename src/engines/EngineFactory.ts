@@ -4,15 +4,16 @@
 
 import { BaseEngine, EngineConfig } from './BaseEngine';
 import { GPTEngine } from './GPTEngine';
+import { GPT5Engine, GPT5Config } from './GPT5Engine';
 import { ClaudeEngine } from './ClaudeEngine';
 import { LocalEngine, LocalEngineConfig } from './LocalEngine';
 
-export type EngineType = 'gpt' | 'claude' | 'local' | 'custom';
+export type EngineType = 'gpt' | 'gpt5' | 'claude' | 'local' | 'custom';
 
 export interface EngineDefinition {
   type: EngineType;
   name: string;
-  config: EngineConfig | LocalEngineConfig;
+  config: EngineConfig | LocalEngineConfig | GPT5Config;
 }
 
 export class EngineFactory {
@@ -21,10 +22,12 @@ export class EngineFactory {
   /**
    * Create an engine instance
    */
-  static createEngine(type: EngineType, config: Partial<EngineConfig | LocalEngineConfig>): BaseEngine {
+  static createEngine(type: EngineType, config: Partial<EngineConfig | LocalEngineConfig | GPT5Config>): BaseEngine {
     switch (type) {
       case 'gpt':
         return new GPTEngine(config);
+      case 'gpt5':
+        return new GPT5Engine(config as GPT5Config);
       case 'claude':
         return new ClaudeEngine(config);
       case 'local':
@@ -77,6 +80,7 @@ export class EngineFactory {
    */
   static getDefaultConfigs(): EngineDefinition[] {
     return [
+      // GPT-4 Family
       {
         type: 'gpt',
         name: 'gpt-4o',
@@ -95,6 +99,47 @@ export class EngineFactory {
           model: 'gpt-4o-mini',
           temperature: 0.7,
           maxTokens: 4000
+        }
+      },
+      // GPT-5 Family (NEW!)
+      {
+        type: 'gpt5',
+        name: 'gpt-5',
+        config: {
+          name: 'gpt-5',
+          modelVariant: 'flagship',
+          temperature: 0.7,
+          maxTokens: 8192
+        }
+      },
+      {
+        type: 'gpt5',
+        name: 'gpt-5-mini',
+        config: {
+          name: 'gpt-5-mini',
+          modelVariant: 'mini',
+          temperature: 0.7,
+          maxTokens: 4096
+        }
+      },
+      {
+        type: 'gpt5',
+        name: 'gpt-5-nano',
+        config: {
+          name: 'gpt-5-nano',
+          modelVariant: 'nano',
+          temperature: 0.7,
+          maxTokens: 2048
+        }
+      },
+      // GPT-5 with A/B Testing
+      {
+        type: 'gpt5',
+        name: 'gpt-5-ab',
+        config: {
+          name: 'gpt-5-ab',
+          enableABTesting: true,
+          temperature: 0.7
         }
       },
       {

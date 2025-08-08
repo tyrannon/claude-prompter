@@ -19,7 +19,7 @@ export function createMultishotCommand(): Command {
     .description('Run a prompt across multiple AI models and compare results')
     .option('-m, --message <message>', 'The prompt message to run')
     .option('-s, --system <system>', 'System prompt for all models')
-    .option('--models <models>', 'Comma-separated list of models to use', 'gpt-4o,claude-sonnet')
+    .option('--models <models>', 'Comma-separated list of models to use (e.g., gpt-5,gpt-5-mini,gpt-4o)', 'gpt-5-mini,gpt-4o')
     .option('--runs <number>', 'Number of times to run each model', '1')
     .option('--concurrent', 'Run models in parallel (default)', true)
     .option('--sequential', 'Run models sequentially')
@@ -43,6 +43,10 @@ export function createMultishotCommand(): Command {
     .option('--speed-sensitivity <level>', 'Speed sensitivity: low, medium, high', 'medium')
     .option('--quality-sensitivity <level>', 'Quality sensitivity: low, medium, high', 'medium')
     .option('--max-models <number>', 'Maximum number of models to auto-select', '3')
+    .option('--ab-test', 'Enable A/B testing mode with automatic model selection')
+    .option('--ab-test-name <name>', 'Name for the A/B test')
+    .option('--ab-test-metrics', 'Show A/B test metrics after execution')
+    .option('--gpt5-variants', 'Test all GPT-5 variants (flagship, mini, nano)')
     .action(async (options) => {
       try {
         if (options.listModels) {
@@ -242,6 +246,11 @@ async function executeMultishot(options: any): Promise<void> {
   if (options.autoScore) {
     await performAutoScoring(allResults, request);
   }
+
+  // Show A/B test metrics if enabled
+  if (options.abTestMetrics || options.abTest) {
+    await showABTestMetrics(allResults, options);
+  }
 }
 
 /**
@@ -250,8 +259,28 @@ async function executeMultishot(options: any): Promise<void> {
 async function buildRunConfig(options: any): Promise<RunConfig> {
   let modelNames: string[];
   
+  // Handle GPT-5 variants testing
+  if (options.gpt5Variants) {
+    modelNames = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano'];
+    console.log(chalk.cyan('🚀 Testing all GPT-5 variants: flagship, mini, nano'));
+  }
+  // Handle A/B testing mode
+  else if (options.abTest) {
+    const { abTesting } = await import('../models/ABTestingFramework');
+    
+    // Create or get comparison test
+    const testModels = options.models ? 
+      options.models.split(',').map((s: string) => s.trim()) :
+      ['gpt-5-mini', 'gpt-4o']; // Default comparison
+    
+    const test = abTesting.getOrCreateComparisonTest(testModels);
+    console.log(chalk.cyan(`📊 A/B Test Active: ${test.name}`));
+    console.log(chalk.gray(`  Distribution: ${Array.from(test.distribution.entries()).map(([m, p]) => `${m}: ${p}%`).join(', ')}`));
+    
+    modelNames = test.models;
+  }
   // Use intelligent router if --smart flag is provided
-  if (options.smart) {
+  else if (options.smart) {
     console.log(chalk.cyan('\n🧠 Using Intelligent Router for model selection...\n'));
     
     const router = new IntelligentRouter();
@@ -391,7 +420,10 @@ async function buildRunConfig(options: any): Promise<RunConfig> {
  * Infer engine type from model name
  */
 function inferEngineType(modelName: string): EngineType {
-  if (modelName.includes('gpt') || modelName.includes('openai')) {
+  // Check for GPT-5 models specifically
+  if (modelName.startsWith('gpt-5') || modelName === 'gpt5') {
+    return 'gpt5';
+  } else if (modelName.includes('gpt') || modelName.includes('openai')) {
     return 'gpt';
   } else if (modelName.includes('claude') || modelName.includes('anthropic')) {
     return 'claude';
@@ -538,4 +570,99 @@ Finally, rank them from best to worst.`;
   } catch (error) {
     console.log(chalk.red(`Auto-scoring failed: ${error instanceof Error ? error.message : String(error)}`));
   }
+}
+
+/**
+ * Show A/B test metrics and analysis
+ */
+async function showABTestMetrics(
+  allResults: Map<string, any[]>,
+  options: any
+): Promise<void> {
+  console.log(chalk.bold.blue('\n📊 A/B Test Metrics'));
+  console.log(chalk.gray('─'.repeat(50)));
+
+  const { abTesting } = await import('../models/ABTestingFramework');
+  const { modelRegistry } = await import('../models/ModelRegistry');
+  
+  // Record results for A/B testing
+  for (const [engineName, responses] of allResults) {
+    for (const response of responses) {
+      await abTesting.recordResult({
+        modelId: engineName,
+        requestId: `multishot_${Date.now()}`,
+        timestamp: new Date(),
+        metrics: {
+          responseTime: response.executionTime,
+          tokenUsage: response.tokenUsage || { input: 0, output: 0, total: 0 },
+          cost: response.metadata?.estimatedCost || 0,
+          errorOccurred: !!response.error
+        }
+      });
+    }
+  }
+
+  // Analyze test results
+  if (options.abTestName) {
+    try {
+      const analysis = abTesting.analyzeTest(options.abTestName);
+      
+      console.log(chalk.cyan('\n📈 Model Performance:'));
+      for (const [modelId, stats] of analysis.modelStats) {
+        const model = modelRegistry.getModel(modelId);
+        console.log(`\n${chalk.yellow(model?.name || modelId)}:`);
+        console.log(`  Sample Size: ${stats.sampleSize}`);
+        console.log(`  Avg Response Time: ${stats.avgResponseTime.toFixed(0)}ms`);
+        console.log(`  Avg Cost: $${stats.avgCost.toFixed(4)}`);
+        console.log(`  Success Rate: ${(stats.successRate * 100).toFixed(1)}%`);
+        console.log(`  P95 Response Time: ${stats.p95ResponseTime.toFixed(0)}ms`);
+      }
+
+      if (analysis.winner) {
+        console.log(chalk.green(`\n🏆 Winner: ${analysis.winner}`));
+        console.log(chalk.gray(`  Confidence: ${analysis.confidence?.toFixed(1)}%`));
+      }
+
+      if (analysis.recommendations.length > 0) {
+        console.log(chalk.cyan('\n💡 Recommendations:'));
+        analysis.recommendations.forEach(rec => {
+          console.log(chalk.gray(`  • ${rec}`));
+        });
+      }
+    } catch (error) {
+      console.log(chalk.yellow('Note: Full A/B test analysis requires a named test'));
+    }
+  }
+
+  // Show cost comparison
+  console.log(chalk.cyan('\n💰 Cost Analysis:'));
+  let totalCost = 0;
+  for (const [engineName, responses] of allResults) {
+    const modelCost = responses.reduce((sum, r) => 
+      sum + (r.metadata?.estimatedCost || 0), 0
+    );
+    totalCost += modelCost;
+    console.log(`  ${engineName}: $${modelCost.toFixed(4)}`);
+  }
+  console.log(chalk.bold(`  Total: $${totalCost.toFixed(4)}`));
+
+  // Performance comparison
+  console.log(chalk.cyan('\n⚡ Performance Comparison:'));
+  const perfData: Array<{model: string, avg: number, min: number, max: number}> = [];
+  
+  for (const [engineName, responses] of allResults) {
+    const times = responses.map(r => r.executionTime);
+    perfData.push({
+      model: engineName,
+      avg: times.reduce((a, b) => a + b, 0) / times.length,
+      min: Math.min(...times),
+      max: Math.max(...times)
+    });
+  }
+  
+  perfData.sort((a, b) => a.avg - b.avg);
+  perfData.forEach((data, index) => {
+    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '  ';
+    console.log(`${medal} ${data.model}: avg ${data.avg.toFixed(0)}ms (${data.min}-${data.max}ms)`);
+  });
 }

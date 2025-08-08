@@ -179,16 +179,21 @@ async function recordFailedUsage(
 }
 
 /**
- * Call OpenAI's GPT-4o model with a prompt
+ * Call OpenAI's GPT models with a prompt
  * @param prompt The user prompt to send
  * @param systemPrompt Optional system prompt for context
- * @param options Additional options like command name for tracking
+ * @param options Additional options including model selection and tracking
  * @returns The assistant's response text
  */
 export async function callOpenAI(
   prompt: string,
   systemPrompt: string = 'You are a helpful assistant.',
-  options: { command?: string; batchId?: string; sessionId?: string } = {}
+  options: { 
+    command?: string; 
+    batchId?: string; 
+    sessionId?: string;
+    model?: string; // Support model selection
+  } = {}
 ): Promise<string> {
   return ErrorHandler.withErrorHandling(async () => {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -211,7 +216,7 @@ export async function callOpenAI(
 async function callOpenAIInternal(
   prompt: string,
   systemPrompt: string,
-  options: { command?: string; batchId?: string; sessionId?: string }
+  options: { command?: string; batchId?: string; sessionId?: string; model?: string }
 ): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY!;
 
@@ -236,7 +241,7 @@ async function callOpenAIInternal(
   }
 
   const payload = {
-    model: 'gpt-4o',
+    model: options.model || 'gpt-4o', // Support custom model selection
     messages,
     temperature: 0.7,
     max_tokens: 4000,
@@ -368,7 +373,8 @@ async function callOpenAIInternal(
  */
 export async function* callOpenAIStream(
   prompt: string,
-  systemPrompt: string = 'You are a helpful assistant.'
+  systemPrompt: string = 'You are a helpful assistant.',
+  options: { model?: string } = {}
 ): AsyncGenerator<string, void, unknown> {
   const apiKey = process.env.OPENAI_API_KEY;
   
@@ -382,7 +388,7 @@ export async function* callOpenAIStream(
   ];
 
   const payload = {
-    model: 'gpt-4o',
+    model: options.model || 'gpt-4o',
     messages,
     temperature: 0.7,
     max_tokens: 4000,
@@ -445,6 +451,7 @@ export async function streamOpenAI(
     command?: string;
     batchId?: string;
     sessionId?: string;
+    model?: string;
   } = {}
 ): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -459,7 +466,7 @@ export async function streamOpenAI(
   let fullResponse = '';
 
   const payload = {
-    model: 'gpt-4o',
+    model: options.model || 'gpt-4o',
     messages,
     temperature: options.temperature || 0.7,
     max_tokens: options.max_tokens || 4000,
