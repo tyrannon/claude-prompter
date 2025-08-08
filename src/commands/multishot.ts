@@ -19,7 +19,7 @@ export function createMultishotCommand(): Command {
     .description('Run a prompt across multiple AI models and compare results')
     .option('-m, --message <message>', 'The prompt message to run')
     .option('-s, --system <system>', 'System prompt for all models')
-    .option('--models <models>', 'Comma-separated list of models to use (e.g., gpt-5,gpt-5-mini,gpt-4o)', 'gpt-5-mini,gpt-4o')
+    .option('--models <models>', 'Comma-separated list of models to use (e.g., gpt-5,gpt-5-mini,gpt-4o)', 'gpt-5,gpt-5-mini,gpt-4o')
     .option('--runs <number>', 'Number of times to run each model', '1')
     .option('--concurrent', 'Run models in parallel (default)', true)
     .option('--sequential', 'Run models sequentially')
