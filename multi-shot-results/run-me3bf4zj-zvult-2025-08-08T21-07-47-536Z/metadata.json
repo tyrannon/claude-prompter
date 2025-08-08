@@ -1,0 +1,23 @@
+{
+  "runId": "me3bf4zj-zvult",
+  "timestamp": "2025-08-08T21:07:47.536Z",
+  "prompt": "analysis on how to solve the two sum problem",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 4,
+    "successCount": 3,
+    "errorCount": 1,
+    "totalExecutionTime": 20881
+  }
+}

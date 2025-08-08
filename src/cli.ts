@@ -409,6 +409,64 @@ program.addCommand(createABTestCommand());
 program.addCommand(createNaturalCommand());
 
 program
+  .command('capabilities')
+  .alias('help-features')
+  .description('Show all claude-prompter capabilities with examples')
+  .action(() => {
+    console.log(boxen(
+      chalk.cyan.bold('🚀 Claude-Prompter Capabilities') + '\n\n' +
+      
+      chalk.yellow.bold('🗣️  NATURAL LANGUAGE INTERFACE (Recommended!)') + '\n' +
+      chalk.gray('Talk to claude-prompter like a human - no complex syntax needed!') + '\n\n' +
+      
+      chalk.green('Examples:') + '\n' +
+      chalk.cyan('  claude-prompter ask "run multishot analysis on React performance"') + '\n' +
+      chalk.cyan('  claude-prompter ask "suggest ideas for authentication systems"') + '\n' +
+      chalk.cyan('  claude-prompter ask "show me today\'s API usage and costs"') + '\n' +
+      chalk.cyan('  claude-prompter ask "compare TypeScript patterns using multiple models"') + '\n\n' +
+      
+      chalk.yellow.bold('🤖  MULTISHOT ANALYSIS') + '\n' +
+      chalk.gray('Compare insights across multiple AI models (GPT-5, GPT-5-mini, GPT-5-nano, qwen3)') + '\n' +
+      chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "compare authentication approaches"') + '\n' +
+      chalk.green('Traditional: ') + chalk.cyan('claude-prompter multishot -m "your question"') + '\n\n' +
+      
+      chalk.yellow.bold('💡  INTELLIGENT SUGGESTIONS') + '\n' +
+      chalk.gray('Get contextual follow-up prompts based on your work') + '\n' +
+      chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "suggest next steps for React project"') + '\n' +
+      chalk.green('Traditional: ') + chalk.cyan('claude-prompter suggest -t "topic" --claude-analysis') + '\n\n' +
+      
+      chalk.yellow.bold('💰  USAGE & COST TRACKING') + '\n' +
+      chalk.gray('Monitor API usage and spending') + '\n' +
+      chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "show me today\'s usage"') + '\n' +
+      chalk.green('Traditional: ') + chalk.cyan('claude-prompter usage --today') + '\n\n' +
+      
+      chalk.yellow.bold('📊  LEARNING ANALYTICS') + '\n' +
+      chalk.gray('Track your progress and discover patterns') + '\n' +
+      chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "show my learning progress"') + '\n' +
+      chalk.green('Traditional: ') + chalk.cyan('claude-prompter stats --detailed') + '\n\n' +
+      
+      chalk.yellow.bold('🏠  LOCAL AI MODELS (60-80% Cost Savings!)') + '\n' +
+      chalk.gray('Use qwen3, qwen2.5-coder for free analysis (requires Ollama)') + '\n' +
+      chalk.green('Setup: ') + chalk.cyan('ollama pull qwen3:latest && ollama serve') + '\n' +
+      chalk.green('Usage: ') + chalk.cyan('Models auto-included in multishot by default') + '\n\n' +
+      
+      chalk.yellow.bold('🔍  DEBUGGING TIPS') + '\n' +
+      chalk.cyan('  --dry-run') + chalk.gray('     See what command will execute') + '\n' +
+      chalk.cyan('  --help') + chalk.gray('        Get help for any command') + '\n' +
+      chalk.cyan('  capabilities') + chalk.gray('   Show this help (alias: help-features)') + '\n\n' +
+      
+      chalk.green.bold('💡 Pro Tip: ') + chalk.white('Start with "claude-prompter ask" and describe what you want naturally!')
+      ,
+      { 
+        padding: 1, 
+        borderColor: 'cyan', 
+        borderStyle: 'round',
+        margin: { top: 1, bottom: 1 }
+      }
+    ));
+  });
+
+program
   .command('config')
   .description('Check configuration and API key status')
   .action(() => {

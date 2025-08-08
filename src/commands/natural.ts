@@ -445,25 +445,49 @@ function buildCommand(intent: ParsedIntent): string {
 async function executeCommand(intent: ParsedIntent): Promise<void> {
   // Import and execute the appropriate command
   const { spawn } = await import('child_process');
+  const path = await import('path');
   
   return new Promise((resolve, reject) => {
     const command = buildCommand(intent);
     const args = command.split(' ').slice(1); // Remove the command name
     
-    const child = spawn('node', ['dist/cli.js', intent.command, ...args], {
+    // Try to find the correct path to cli.js
+    const possiblePaths = [
+      'dist/cli.js',  // Local execution
+      path.join(__dirname, '../../cli.js'), // Relative from build
+      path.join(__dirname, '../../../dist/cli.js'), // From global install
+      '/Users/kaiyakramer/claude-prompter-standalone/dist/cli.js' // Absolute fallback
+    ];
+    
+    let cliPath = possiblePaths[0];
+    
+    const child = spawn('node', [cliPath, intent.command, ...args], {
       stdio: 'inherit',
-      shell: true
+      shell: false // More secure than shell: true
     });
     
     child.on('close', (code) => {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`Command exited with code ${code}`));
+        // Provide helpful error message with fallback suggestions
+        const error = new Error(`Command failed with exit code ${code}`);
+        console.error(chalk.yellow('\n💡 Troubleshooting Tips:'));
+        console.error(chalk.gray('  • Try the traditional syntax:'));
+        console.error(chalk.cyan(`    claude-prompter ${command}`));
+        console.error(chalk.gray('  • Use --dry-run to see what command would execute'));
+        console.error(chalk.gray('  • Check that claude-prompter is properly installed'));
+        reject(error);
       }
     });
     
     child.on('error', (error) => {
+      console.error(chalk.red('\n❌ Command Execution Error:'));
+      console.error(chalk.gray('  This might be a path or installation issue.'));
+      console.error(chalk.yellow('\n💡 Try these alternatives:'));
+      console.error(chalk.cyan(`  claude-prompter ${command}`));
+      console.error(chalk.gray('  or use the wrapper script:'));
+      console.error(chalk.cyan(`  ~/.local/bin/claude-prompter-global ${command}`));
       reject(error);
     });
   });

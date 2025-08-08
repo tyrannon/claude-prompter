@@ -24,7 +24,7 @@ export function createMultishotCommand(): Command {
     .option('--concurrent', 'Run models in parallel (default)', true)
     .option('--sequential', 'Run models sequentially')
     .option('--max-concurrency <number>', 'Max number of concurrent requests', '5')
-    .option('--timeout <ms>', 'Timeout for each request in milliseconds', '60000')
+    .option('--timeout <ms>', 'Timeout for each request in milliseconds', '120000')
     .option('--retries <number>', 'Number of retries for failed requests', '1')
     .option('--output <strategy>', 'Output strategy: git, folders, or both', 'both')
     .option('--output-dir <dir>', 'Directory for folder outputs', './multi-shot-results')
