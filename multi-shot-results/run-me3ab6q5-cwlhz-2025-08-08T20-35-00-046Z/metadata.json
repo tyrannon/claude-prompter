@@ -1,0 +1,21 @@
+{
+  "runId": "me3ab6q5-cwlhz",
+  "timestamp": "2025-08-08T20:35:00.046Z",
+  "prompt": "What's the next priority feature for claude-prompter: Predictive AI, Natural Language Interface, or Plugin Marketplace? Give a 2-sentence recommendation.",
+  "engines": [
+    "gpt-5",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 2,
+    "errorCount": 0,
+    "totalExecutionTime": 21457
+  }
+}

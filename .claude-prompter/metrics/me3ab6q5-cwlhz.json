@@ -1,0 +1,46 @@
+{
+  "runId": "me3ab6q5-cwlhz",
+  "timestamp": "2025-08-08T20:35:00.165Z",
+  "prompt": "What's the next priority feature for claude-prompter: Predictive AI, Natural Language Interface, or Plugin Marketplace? Give a 2-sentence recommendation.",
+  "models": [
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 2021,
+      "tokenUsage": {
+        "promptTokens": 39,
+        "completionTokens": 81,
+        "totalTokens": 120
+      },
+      "cost": 0.000201,
+      "qualityScore": 7,
+      "success": true,
+      "timestamp": "2025-08-08T20:34:42.629Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 19436,
+      "tokenUsage": {
+        "promptTokens": 41,
+        "completionTokens": 337,
+        "totalTokens": 378
+      },
+      "cost": 0.000715,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:35:00.046Z"
+    }
+  ],
+  "totalCost": 0.000916,
+  "totalTime": 19585,
+  "successRate": 1,
+  "averageQualityScore": 7.25,
+  "taskComplexity": 3,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 90000,
+    "retries": 1
+  }
+}

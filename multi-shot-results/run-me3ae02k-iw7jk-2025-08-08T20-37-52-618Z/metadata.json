@@ -1,0 +1,23 @@
+{
+  "runId": "me3ae02k-iw7jk",
+  "timestamp": "2025-08-08T20:37:52.618Z",
+  "prompt": "Test new defaults with all models",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 4,
+    "successCount": 3,
+    "errorCount": 1,
+    "totalExecutionTime": 31464
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "runId": "me3a204c-3x6dt",
+  "timestamp": "2025-08-08T20:28:29.318Z",
+  "prompt": "What is the best practice for error handling in JavaScript? Give a concise answer with one code example.",
+  "engines": [
+    "gpt-4o",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 2,
+    "errorCount": 0,
+    "totalExecutionTime": 61627
+  }
+}

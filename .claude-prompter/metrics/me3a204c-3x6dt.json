@@ -1,0 +1,41 @@
+{
+  "runId": "me3a204c-3x6dt",
+  "timestamp": "2025-08-08T20:28:29.433Z",
+  "prompt": "What is the best practice for error handling in JavaScript? Give a concise answer with one code example.",
+  "models": [
+    {
+      "modelName": "gpt-4o",
+      "engine": "gpt-4o",
+      "executionTime": 3940,
+      "cost": 0.00244,
+      "qualityScore": 10,
+      "success": true,
+      "timestamp": "2025-08-08T20:27:35.570Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 57687,
+      "tokenUsage": {
+        "promptTokens": 28,
+        "completionTokens": 1007,
+        "totalTokens": 1035
+      },
+      "cost": 0.0020420000000000004,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:28:29.318Z"
+    }
+  ],
+  "totalCost": 0.004482,
+  "totalTime": 57826,
+  "successRate": 1,
+  "averageQualityScore": 8.75,
+  "taskComplexity": 3,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 60000,
+    "retries": 1
+  }
+}

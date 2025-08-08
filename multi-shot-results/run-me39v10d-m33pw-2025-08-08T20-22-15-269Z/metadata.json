@@ -1,0 +1,21 @@
+{
+  "runId": "me39v10d-m33pw",
+  "timestamp": "2025-08-08T20:22:15.269Z",
+  "prompt": "Based on the CLAUDE.md file contents, what are the most significant recent enhancements and features that should be highlighted in the README? Focus on revolutionary features like learning-aware suggestions, hybrid AI architecture, performance optimizations, and enterprise capabilities.",
+  "engines": [
+    "gpt-4o",
+    "qwen2.5:32b"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 1,
+    "errorCount": 1,
+    "totalExecutionTime": 9105
+  }
+}

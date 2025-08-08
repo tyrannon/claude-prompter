@@ -1,0 +1,69 @@
+{
+  "runId": "me3ae02k-iw7jk",
+  "timestamp": "2025-08-08T20:37:52.813Z",
+  "prompt": "Test new defaults with all models",
+  "models": [
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 1285,
+      "tokenUsage": {
+        "promptTokens": 9,
+        "completionTokens": 51,
+        "totalTokens": 60
+      },
+      "cost": 0.00011100000000000001,
+      "qualityScore": 7,
+      "success": true,
+      "timestamp": "2025-08-08T20:36:52.894Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 13794,
+      "tokenUsage": {
+        "promptTokens": 9,
+        "completionTokens": 610,
+        "totalTokens": 619
+      },
+      "cost": 0.0012289999999999998,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:37:05.400Z"
+    },
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 16385,
+      "tokenUsage": {
+        "promptTokens": 9,
+        "completionTokens": 553,
+        "totalTokens": 562
+      },
+      "cost": 0.0011149999999999999,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:37:07.993Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 0,
+      "cost": 0,
+      "success": false,
+      "error": "Engine qwen3:latest timed out after 30000ms",
+      "timestamp": "2025-08-08T20:37:52.617Z"
+    }
+  ],
+  "totalCost": 0.0024549999999999997,
+  "totalTime": 61246,
+  "successRate": 0.75,
+  "averageQualityScore": 7.333333333333333,
+  "taskComplexity": 3,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 30000,
+    "retries": 1
+  }
+}

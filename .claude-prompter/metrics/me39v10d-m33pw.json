@@ -1,0 +1,36 @@
+{
+  "runId": "me39v10d-m33pw",
+  "timestamp": "2025-08-08T20:22:15.377Z",
+  "prompt": "Based on the CLAUDE.md file contents, what are the most significant recent enhancements and features that should be highlighted in the README? Focus on revolutionary features like learning-aware suggestions, hybrid AI architecture, performance optimizations, and enterprise capabilities.",
+  "models": [
+    {
+      "modelName": "qwen2.5:32b",
+      "engine": "qwen2.5:32b",
+      "executionTime": 5,
+      "cost": 0,
+      "success": false,
+      "error": "Ollama API error: 404 - {\"error\":\"model 'qwen2.5:32b' not found\"}",
+      "timestamp": "2025-08-08T20:22:07.182Z"
+    },
+    {
+      "modelName": "gpt-4o",
+      "engine": "gpt-4o",
+      "executionTime": 9100,
+      "cost": 0.0033399999999999997,
+      "qualityScore": 9.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:22:15.269Z"
+    }
+  ],
+  "totalCost": 0.0033399999999999997,
+  "totalTime": 9225,
+  "successRate": 0.5,
+  "averageQualityScore": 9.5,
+  "taskComplexity": 6,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 60000,
+    "retries": 1
+  }
+}

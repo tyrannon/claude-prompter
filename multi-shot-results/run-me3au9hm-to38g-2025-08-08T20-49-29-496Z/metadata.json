@@ -1,0 +1,18 @@
+{
+  "runId": "me3au9hm-to38g",
+  "timestamp": "2025-08-08T20:49:29.496Z",
+  "prompt": ": What are the 3 most important React performance optimization techniques with code examples?",
+  "engines": [],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 0,
+    "successCount": 0,
+    "errorCount": 0,
+    "totalExecutionTime": 0
+  }
+}

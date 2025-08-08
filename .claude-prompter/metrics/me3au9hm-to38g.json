@@ -1,0 +1,16 @@
+{
+  "runId": "me3au9hm-to38g",
+  "timestamp": "2025-08-08T20:49:29.524Z",
+  "prompt": ": What are the 3 most important React performance optimization techniques with code examples?",
+  "models": [],
+  "totalCost": 0,
+  "totalTime": 40,
+  "successRate": 0,
+  "taskComplexity": 5,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 60000,
+    "retries": 1
+  }
+}
