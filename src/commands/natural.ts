@@ -18,29 +18,39 @@ export interface NLIConfig {
   enabledCommands: string[];
   confidenceThreshold: number;
   maxRetries: number;
+  defaultToMultishot: boolean;
+  multishotOptOutKeywords: string[];
 }
 
 export class NaturalLanguageParser {
   private config: NLIConfig = {
     enabledCommands: ['suggest', 'multishot', 'usage', 'stats', 'patterns', 'prompt'],
     confidenceThreshold: 0.7,
-    maxRetries: 2
+    maxRetries: 2,
+    defaultToMultishot: true, // REVOLUTIONARY: Multishot intelligence by default!
+    multishotOptOutKeywords: ['quick', 'single', 'fast', 'simple', 'one model', 'just one', 'basic']
   };
+
+  constructor(customConfig?: Partial<NLIConfig>) {
+    if (customConfig) {
+      this.config = { ...this.config, ...customConfig };
+    }
+  }
 
   /**
    * Parse natural language input into structured command
    */
   async parseIntent(input: string): Promise<ParsedIntent> {
     
-    // Intent patterns for different commands
+    // Intent patterns for different commands - now multishot-first!
     const intentPatterns = [
-      // Suggest command
+      // Explicit single-model requests (opt-out patterns)
       {
         command: 'suggest',
         patterns: [
-          /(?:suggest|recommendation|ideas?|what should|next steps?|follow[- ]?up|help me with)(.*?)(?:for|about|with|on)?\s*(.+)/i,
-          /(?:give me|show me|generate)\s+(?:suggestions?|ideas?|prompts?)\s+(?:for|about|with|on)\s*(.+)/i,
-          /what.*(?:next|do|build|implement|create).*(?:for|with|in|on)\s*(.+)/i
+          new RegExp(`(?:${this.config.multishotOptOutKeywords.join('|')}).*?(?:suggest|recommendation|ideas?)`, 'i'),
+          new RegExp(`(?:suggest|recommendation|ideas?).*?(?:${this.config.multishotOptOutKeywords.join('|')})`, 'i'),
+          /single\s+(?:model|engine)\s+(?:suggest|recommendation|help)/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           topic: this.extractTopic(_match, input),
@@ -51,16 +61,18 @@ export class NaturalLanguageParser {
         })
       },
       
-      // Multishot command  
+      // Multishot command (now default for most queries)
       {
         command: 'multishot',
         patterns: [
           /(?:compare|test|run)\s+(?:across|with|using)\s+(?:multiple\s+)?(?:models?|ai|engines?)/i,
           /(?:multishot|multi[- ]?shot|multiple models?)\s*(?:with|for|on)?\s*(.+)/i,
-          /(?:analyze|compare)\s+(?:this|the)?\s*(.+?)\s*(?:with|using|across)\s+(?:different\s+)?(?:models?|ai)/i
+          /(?:analyze|compare)\s+(?:this|the)?\s*(.+?)\s*(?:with|using|across)\s+(?:different\s+)?(?:models?|ai)/i,
+          // Default multishot patterns - broader matches for general queries (only when multishot enabled)
+          this.config.defaultToMultishot ? /^(?!.*(?:quick|single|fast|simple)).*(?:help|how|what|explain|implement|create|build|show|tell).*$/i : /never_match_this_pattern_xyz123/
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
-          message: this.extractMessage(_match, input),
+          message: this.extractMessage(_match, input) || input.trim(),
           models: this.extractModels(input),
           compare: true
         })
@@ -154,7 +166,14 @@ export class NaturalLanguageParser {
 
   private extractMessage(match: RegExpMatchArray, input: string): string {
     const messageMatch = match[1] || match[0];
-    return messageMatch ? messageMatch.trim() : input.replace(/(?:compare|test|run|multishot|multi-shot).*?(?:with|using|across)\s+(?:models?|ai)/i, '').trim();
+    if (messageMatch && messageMatch.trim()) {
+      return messageMatch.trim();
+    }
+    // Clean up command-specific keywords but preserve the core message
+    return input
+      .replace(/(?:compare|test|run|multishot|multi-shot).*?(?:with|using|across)\s+(?:models?|ai)/i, '')
+      .replace(/^(?:help|how|what|explain|implement|create|build|show|tell)\s+(?:me\s+)?/i, '')
+      .trim() || input.trim();
   }
 
   private extractModels(input: string): string | undefined {
@@ -225,11 +244,19 @@ export class NaturalLanguageParser {
     if (new RegExp(`\\b${command}\\b`, 'i').test(input)) {
       confidence += 0.15;
     }
+    
+    // Boost confidence for multishot as it's now our preferred intelligent default
+    if (command === 'multishot' && this.config.defaultToMultishot) {
+      const optOutPattern = new RegExp(`\\b(?:${this.config.multishotOptOutKeywords.join('|')})\\b`, 'i');
+      if (!optOutPattern.test(input)) {
+        confidence += 0.15; // Strong boost for multishot intelligence
+      }
+    }
 
     // Boost for multiple matching keywords
     const commandKeywords = {
       suggest: ['suggest', 'recommendation', 'ideas', 'next', 'help'],
-      multishot: ['compare', 'models', 'multishot', 'test', 'analyze'],
+      multishot: ['compare', 'models', 'multishot', 'test', 'analyze', 'help', 'how', 'what', 'explain', 'implement', 'create', 'build'],
       usage: ['usage', 'cost', 'spending', 'tokens', 'bill'],
       stats: ['stats', 'progress', 'learning', 'analytics'],
       patterns: ['patterns', 'trends', 'frequency', 'habits']
@@ -246,13 +273,31 @@ export class NaturalLanguageParser {
   }
 
   private fallbackParsing(input: string): ParsedIntent {
-    // If no specific pattern matches, default to suggest command with lower confidence
+    // Check if multishot is disabled in config or user explicitly wants single model
+    const hasOptOutKeywords = this.config.multishotOptOutKeywords.length > 0;
+    const optOutPattern = hasOptOutKeywords ? new RegExp(`\\b(?:${this.config.multishotOptOutKeywords.join('|')})\\b`, 'i') : null;
+    const shouldOptOut = !this.config.defaultToMultishot || (optOutPattern && optOutPattern.test(input));
+    
+    if (shouldOptOut) {
+      return {
+        command: 'suggest',
+        confidence: 0.75, // Higher confidence for explicit opt-out requests
+        parameters: {
+          topic: optOutPattern ? input.replace(optOutPattern, '').trim() : input.trim(),
+          showGrowth: false
+        },
+        originalText: input
+      };
+    }
+    
+    // Default to multishot for superior intelligence across multiple AI models!
     return {
-      command: 'suggest',
-      confidence: 0.5,
+      command: 'multishot', 
+      confidence: 0.8, // High confidence for our intelligent default
       parameters: {
-        topic: input,
-        showGrowth: false
+        message: input.trim(),
+        models: undefined, // Use optimal model selection for best results
+        compare: true
       },
       originalText: input
     };
@@ -293,7 +338,6 @@ export class NaturalLanguageParser {
 
 export function createNaturalCommand(): Command {
   const cmd = new Command('natural');
-  const parser = new NaturalLanguageParser();
   
   cmd
     .alias('ask')
@@ -301,11 +345,33 @@ export function createNaturalCommand(): Command {
     .argument('<input>', 'Natural language input describing what you want to do')
     .option('--dry-run', 'Show what command would be executed without running it')
     .option('--confidence-threshold <threshold>', 'Minimum confidence required (0-1)', '0.7')
+    .option('--disable-multishot', 'Disable multishot by default (use single model unless explicitly requested)')
+    .option('--force-multishot', 'Force multishot analysis for all queries (override opt-out keywords)')
     .action(async (input: string, options) => {
       try {
+        // Create parser with custom config based on CLI options
+        const parserConfig: Partial<NLIConfig> = {
+          confidenceThreshold: parseFloat(options.confidenceThreshold)
+        };
+        
+        if (options.disableMultishot) {
+          parserConfig.defaultToMultishot = false;
+        }
+        if (options.forceMultishot) {
+          parserConfig.defaultToMultishot = true;
+          parserConfig.multishotOptOutKeywords = []; // Ignore opt-out keywords
+        }
+        
+        const parser = new NaturalLanguageParser(parserConfig);
+        
+        const multishotStatus = parserConfig.defaultToMultishot !== false ? 
+          (options.forceMultishot ? '🚀 FORCE MULTISHOT' : '🧠 MULTISHOT ENABLED') : 
+          '⚡ SINGLE MODEL';
+        
         console.log(boxen(
           chalk.cyan('🧠 Natural Language Interface') + '\n' +
-          chalk.gray('Processing: ') + chalk.white(input),
+          chalk.gray('Processing: ') + chalk.white(input) + '\n' +
+          chalk.gray('Mode: ') + chalk.yellow(multishotStatus),
           { padding: 1, borderColor: 'cyan', borderStyle: 'round' }
         ));
 
@@ -325,7 +391,7 @@ export function createNaturalCommand(): Command {
           }
         }
 
-        // Check confidence threshold
+        // Check confidence threshold  
         const threshold = parseFloat(options.confidenceThreshold);
         if (intent.confidence < threshold) {
           const clarifications = parser.generateClarification(intent);
@@ -337,6 +403,10 @@ export function createNaturalCommand(): Command {
           console.log(chalk.gray('  • Rephrase your request more specifically'));
           console.log(chalk.gray('  • Use --confidence-threshold 0.5 to lower the threshold'));
           console.log(chalk.gray('  • Run with --dry-run to see the proposed command'));
+          if (intent.command === 'multishot' && !options.forceMultishot) {
+            console.log(chalk.gray('  • Add "quick" or "single" to your request for single-model analysis'));
+            console.log(chalk.gray('  • Use --disable-multishot to default to single model mode'));
+          }
           return;
         }
 

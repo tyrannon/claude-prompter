@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { EngineResponse } from '../engines/BaseEngine';
+import { TopicExtractor } from '../utils/topicExtractor';
 
 export interface OutputConfig {
   strategy: 'git' | 'folders' | 'both';
@@ -141,12 +142,18 @@ export class OutputManager {
   }
 
   /**
-   * Save results to timestamped folders
+   * Save results to timestamped folders with human-readable names
    */
   private async saveToFolders(result: OutputResult): Promise<void> {
+    // Generate human-readable folder name with topic extraction
+    const humanReadableName = TopicExtractor.generateFolderName(
+      result.metadata.prompt, 
+      result.timestamp
+    );
+    
     const runDir = path.join(
       this.config.baseDir!,
-      `run-${result.runId}-${result.timestamp.toISOString().replace(/[:.]/g, '-')}`
+      humanReadableName
     );
 
     await fs.mkdir(runDir, { recursive: true });
@@ -314,13 +321,30 @@ ${JSON.stringify(response.metadata || {}, null, 2)}
           const entries = await fs.readdir(this.config.baseDir!, { withFileTypes: true });
           
           for (const entry of entries) {
-            if (entry.isDirectory() && entry.name.startsWith('run-')) {
-              const dirPath = path.join(this.config.baseDir!, entry.name);
-              const stats = await fs.stat(dirPath);
+            if (entry.isDirectory()) {
+              // Check if it's a legacy folder (run-*) or new format (YYYY-MM-DD_*)
+              const isLegacyFolder = entry.name.startsWith('run-');
+              const isNewFolder = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}_/.test(entry.name);
               
-              if (stats.mtime < cutoffDate) {
-                await fs.rm(dirPath, { recursive: true, force: true });
-                console.log(`Cleaned up old result folder: ${entry.name}`);
+              if (isLegacyFolder || isNewFolder) {
+                const dirPath = path.join(this.config.baseDir!, entry.name);
+                
+                // Try to parse timestamp from folder name for better accuracy
+                const folderTimestamp = TopicExtractor.parseTimestamp(entry.name);
+                let shouldDelete = false;
+                
+                if (folderTimestamp) {
+                  shouldDelete = folderTimestamp < cutoffDate;
+                } else {
+                  // Fallback to file modification time
+                  const stats = await fs.stat(dirPath);
+                  shouldDelete = stats.mtime < cutoffDate;
+                }
+                
+                if (shouldDelete) {
+                  await fs.rm(dirPath, { recursive: true, force: true });
+                  console.log(`Cleaned up old result folder: ${entry.name}`);
+                }
               }
             }
           }
