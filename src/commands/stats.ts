@@ -82,6 +82,13 @@ export function createStatsCommand(): Command {
           } else {
             displayOverviewStats(stats);
           }
+          
+          // Show natural language alternative
+          if (!options.json) {
+            console.log(chalk.cyan('\n✨ Natural Language Alternative:'));
+            console.log(chalk.gray('  claude-prompter ask "show my learning progress"'));
+            console.log(chalk.gray('  (Includes multishot intelligence by default!)'));
+          }
         } catch (error) {
           console.error(chalk.red('Failed to display statistics:'));
           console.error(chalk.gray(error instanceof Error ? error.message : 'Unknown error'));

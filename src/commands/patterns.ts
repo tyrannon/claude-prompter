@@ -112,6 +112,13 @@ export function createPatternsCommand(): Command {
               displayPatternAnalysis(analysis, options);
             }
           }
+          
+          // Show natural language alternative
+          if (!options.json && !options.output) {
+            console.log(chalk.cyan('\n✨ Natural Language Alternative:'));
+            console.log(chalk.gray('  claude-prompter ask "analyze my coding patterns"'));
+            console.log(chalk.gray('  (Includes multishot intelligence by default!)'));
+          }
         } catch (error) {
           console.error(chalk.red('Failed to display/export pattern analysis:'));
           console.error(chalk.gray(error instanceof Error ? error.message : 'Unknown error'));

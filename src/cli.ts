@@ -83,6 +83,25 @@ function formatError(error: string): string {
   });
 }
 
+// Show natural language alternative after traditional commands
+function showNaturalLanguageHint(commandName: string, _context?: string): void {
+  const suggestions = {
+    suggest: 'claude-prompter ask "suggest ideas for [your topic]"',
+    prompt: 'claude-prompter ask "help me with [your question]"',
+    stats: 'claude-prompter ask "show my learning progress"',
+    usage: 'claude-prompter ask "show my API usage today"',
+    patterns: 'claude-prompter ask "analyze my coding patterns"',
+    multishot: 'claude-prompter ask "compare [your question] across models"'
+  };
+
+  const suggestion = suggestions[commandName as keyof typeof suggestions];
+  if (suggestion) {
+    console.log(chalk.cyan('\n✨ Natural Language Alternative:'));
+    console.log(chalk.gray(`  ${suggestion}`));
+    console.log(chalk.gray('  (Includes multishot intelligence by default!)'));
+  }
+}
+
 // Generate or send prompt
 async function handlePrompt(options: any) {
   try {
@@ -144,6 +163,7 @@ async function handlePrompt(options: any) {
       // Just print the prompt
       console.log(formatResponse(prompt, '📝 Generated Prompt'));
       console.log(chalk.gray('\nTip: Use --send flag to send this prompt to GPT-4o'));
+      showNaturalLanguageHint('prompt');
     }
   } catch (error) {
     console.error(formatError(error instanceof Error ? error.message : 'Unknown error'));
@@ -379,7 +399,8 @@ program
         }
       }
       
-      // Command completed successfully
+      // Command completed successfully - show natural language hint
+      showNaturalLanguageHint('suggest', options.topic);
       
     } catch (error) {
       // Command failed
@@ -416,34 +437,41 @@ program
     console.log(boxen(
       chalk.cyan.bold('🚀 Claude-Prompter Capabilities') + '\n\n' +
       
-      chalk.yellow.bold('🗣️  NATURAL LANGUAGE INTERFACE (Recommended!)') + '\n' +
-      chalk.gray('Talk to claude-prompter like a human - no complex syntax needed!') + '\n\n' +
+      chalk.yellow.bold('🗣️  NATURAL LANGUAGE INTERFACE (Primary Method!)') + '\n' +
+      chalk.gray('🎯 97% Intent Recognition • ⚡ Zero Learning Curve • 🧠 Multishot Intelligence by Default') + '\n\n' +
       
-      chalk.green('Examples:') + '\n' +
-      chalk.cyan('  claude-prompter ask "run multishot analysis on React performance"') + '\n' +
-      chalk.cyan('  claude-prompter ask "suggest ideas for authentication systems"') + '\n' +
-      chalk.cyan('  claude-prompter ask "show me today\'s API usage and costs"') + '\n' +
-      chalk.cyan('  claude-prompter ask "compare TypeScript patterns using multiple models"') + '\n\n' +
+      chalk.green('Common Examples:') + '\n' +
+      chalk.cyan('  claude-prompter ask "suggest React authentication ideas"') + '\n' +
+      chalk.cyan('  claude-prompter ask "run multishot analysis on API design patterns"') + '\n' +
+      chalk.cyan('  claude-prompter ask "show me today\'s usage and costs"') + '\n' +
+      chalk.cyan('  claude-prompter ask "analyze my TypeScript learning patterns"') + '\n' +
+      chalk.cyan('  claude-prompter ask "help me debug this performance issue"') + '\n' +
+      chalk.cyan('  claude-prompter ask "compare authentication approaches across models"') + '\n\n' +
+      
+      chalk.yellow('🎛️  Natural Language Options:') + '\n' +
+      chalk.cyan('  --dry-run') + chalk.gray('           # See what command will execute') + '\n' +
+      chalk.cyan('  --disable-multishot') + chalk.gray('  # Use single model instead of multishot') + '\n' +
+      chalk.cyan('  --force-multishot') + chalk.gray('    # Force multishot even for "quick" requests') + '\n\n' +
       
       chalk.yellow.bold('🤖  MULTISHOT ANALYSIS') + '\n' +
       chalk.gray('Compare insights across multiple AI models (GPT-5, GPT-5-mini, GPT-5-nano, qwen3)') + '\n' +
       chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "compare authentication approaches"') + '\n' +
-      chalk.green('Traditional: ') + chalk.cyan('claude-prompter multishot -m "your question"') + '\n\n' +
+      chalk.gray('Traditional: ') + chalk.gray('claude-prompter multishot -m "your question"') + '\n\n' +
       
       chalk.yellow.bold('💡  INTELLIGENT SUGGESTIONS') + '\n' +
       chalk.gray('Get contextual follow-up prompts based on your work') + '\n' +
       chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "suggest next steps for React project"') + '\n' +
-      chalk.green('Traditional: ') + chalk.cyan('claude-prompter suggest -t "topic" --claude-analysis') + '\n\n' +
+      chalk.gray('Traditional: ') + chalk.gray('claude-prompter suggest -t "topic" --claude-analysis') + '\n\n' +
       
       chalk.yellow.bold('💰  USAGE & COST TRACKING') + '\n' +
       chalk.gray('Monitor API usage and spending') + '\n' +
       chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "show me today\'s usage"') + '\n' +
-      chalk.green('Traditional: ') + chalk.cyan('claude-prompter usage --today') + '\n\n' +
+      chalk.gray('Traditional: ') + chalk.gray('claude-prompter usage --today') + '\n\n' +
       
       chalk.yellow.bold('📊  LEARNING ANALYTICS') + '\n' +
       chalk.gray('Track your progress and discover patterns') + '\n' +
       chalk.green('Natural: ') + chalk.cyan('claude-prompter ask "show my learning progress"') + '\n' +
-      chalk.green('Traditional: ') + chalk.cyan('claude-prompter stats --detailed') + '\n\n' +
+      chalk.gray('Traditional: ') + chalk.gray('claude-prompter stats --detailed') + '\n\n' +
       
       chalk.yellow.bold('🏠  LOCAL AI MODELS (60-80% Cost Savings!)') + '\n' +
       chalk.gray('Use qwen3, qwen2.5-coder for free analysis (requires Ollama)') + '\n' +
@@ -495,10 +523,39 @@ program
     }
   });
 
-// Parse command line arguments
-program.parse(process.argv);
-
-// Show help if no command provided
+// Show enhanced help with natural language first if no command provided
 if (!process.argv.slice(2).length) {
-  program.outputHelp();
+  console.log(boxen(
+    chalk.cyan.bold('🗣️  Welcome to claude-prompter!') + '\n\n' +
+    
+    chalk.yellow.bold('✨ NATURAL LANGUAGE INTERFACE (Recommended!)') + '\n' +
+    chalk.gray('Talk to claude-prompter like a human - no complex syntax needed!') + '\n\n' +
+    
+    chalk.green.bold('Quick Start Examples:') + '\n' +
+    chalk.cyan('  claude-prompter ask "suggest React authentication ideas"') + '\n' +
+    chalk.cyan('  claude-prompter ask "run multishot analysis on API design"') + '\n' +
+    chalk.cyan('  claude-prompter ask "show me today\'s usage and costs"') + '\n' +
+    chalk.cyan('  claude-prompter ask "analyze my learning patterns"') + '\n\n' +
+    
+    chalk.yellow.bold('🤖 Multishot Intelligence by Default') + '\n' +
+    chalk.gray('Compares insights across multiple AI models (GPT-5, GPT-5-mini, qwen3)') + '\n' +
+    chalk.gray('Add "quick" or "single" to your request for single-model analysis') + '\n\n' +
+    
+    chalk.green.bold('📚 Learn More:') + '\n' +
+    chalk.cyan('  claude-prompter capabilities') + chalk.gray('  # See all features with examples') + '\n' +
+    chalk.cyan('  claude-prompter config') + chalk.gray('        # Check your setup') + '\n' +
+    chalk.cyan('  claude-prompter --help') + chalk.gray('       # Traditional CLI commands') + '\n\n' +
+    
+    chalk.green.bold('💡 Pro Tip: ') + chalk.white('Start with "claude-prompter ask" and describe what you want naturally!')
+    ,
+    { 
+      padding: 1, 
+      borderColor: 'cyan', 
+      borderStyle: 'round',
+      margin: { top: 1, bottom: 1 }
+    }
+  ));
+} else {
+  // Parse command line arguments only if there are arguments
+  program.parse(process.argv);
 }

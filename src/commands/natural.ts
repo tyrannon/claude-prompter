@@ -157,10 +157,20 @@ export class NaturalLanguageParser {
     return this.fallbackParsing(input);
   }
 
-  private extractTopic(match: RegExpMatchArray, _input: string): string {
+  private extractTopic(match: RegExpMatchArray, input: string): string {
     // Extract the main topic from various match groups
     const potentialTopics = match.slice(1).filter(Boolean);
-    const topic = potentialTopics[potentialTopics.length - 1] || '';
+    let topic = potentialTopics[potentialTopics.length - 1] || '';
+    
+    // If no topic from match groups, extract from the full input
+    if (!topic) {
+      topic = input
+        .replace(/^(?:quick|single|fast|simple|basic|easy)\s+/i, '')
+        .replace(/^(?:suggest|suggestion|recommendations?|ideas?)\s+(?:for|about|on)?\s*/i, '')
+        .replace(/^(?:help|how|what|explain|implement|create|build|show|tell)\s+(?:me\s+)?(?:with|about)?\s*/i, '')
+        .trim();
+    }
+    
     return topic.trim().replace(/^(?:for|about|with|on)\s+/, '');
   }
 
