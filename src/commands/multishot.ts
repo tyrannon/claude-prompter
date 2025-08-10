@@ -47,6 +47,7 @@ export function createMultishotCommand(): Command {
     .option('--ab-test-name <name>', 'Name for the A/B test')
     .option('--ab-test-metrics', 'Show A/B test metrics after execution')
     .option('--gpt5-variants', 'Test all GPT-5 variants (flagship, mini, nano)')
+    .option('--debug', 'Enable verbose debug logging for troubleshooting')
     .action(async (options) => {
       try {
         if (options.listModels) {
@@ -410,7 +411,8 @@ async function buildRunConfig(options: any): Promise<RunConfig> {
     timeout: parseInt(options.timeout),
     retries: parseInt(options.retries),
     outputConfig,
-    continueOnError: options.continueOnError
+    continueOnError: options.continueOnError,
+    debug: options.debug
   };
   
   return runConfig;

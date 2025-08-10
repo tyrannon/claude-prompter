@@ -18,6 +18,7 @@ export interface RunConfig {
   outputConfig: OutputConfig;
   continueOnError?: boolean;
   progressCallback?: (update: ProgressUpdate) => void;
+  debug?: boolean;
 }
 
 export interface ProgressUpdate {
@@ -87,6 +88,19 @@ export class PromptRunner {
       console.log(chalk.gray(`Max Concurrency: ${this.config.maxConcurrency}`));
     }
 
+    // Show engines being executed
+    const engineNames = engines.map(([name]) => name);
+    console.log(chalk.gray(`Models: ${engineNames.join(', ')}`));
+    console.log(chalk.gray(`Timeout: ${(this.config.timeout || 120000) / 1000}s per engine`));
+    
+    if (this.config.debug) {
+      console.log(chalk.magenta('\n🐛 DEBUG MODE ENABLED'));
+      console.log(chalk.gray(`Debug: Continue on error: ${this.config.continueOnError}`));
+      console.log(chalk.gray(`Debug: Retry attempts: ${this.config.retries || 1}`));
+      console.log(chalk.gray(`Debug: Output strategy: ${this.config.outputConfig.strategy}`));
+    }
+    console.log('');
+
     // Initialize output manager
     await this.outputManager.initialize();
 
@@ -111,12 +125,22 @@ export class PromptRunner {
       // Collect and record performance metrics
       await this.collectAndRecordMetrics(runId, request, results, executionTime);
 
-      console.log(chalk.green(`\n✅ Multi-shot run completed in ${executionTime}ms`));
-      console.log(chalk.gray(`✓ ${successCount}/${engines.length} engines succeeded`));
+      console.log(chalk.green(`\n✅ Multi-shot run completed in ${(executionTime / 1000).toFixed(1)}s`));
+      
+      // Create a simple progress bar for completion
+      const completionRate = successCount / engines.length;
+      const progressBar = this.createProgressBar(completionRate);
+      console.log(`Progress: ${progressBar} ${successCount}/${engines.length} engines`);
       
       if (errors.length > 0) {
         console.log(chalk.yellow(`⚠ ${errors.length} errors occurred`));
+        if (errors.length <= 3) {
+          errors.forEach(error => console.log(chalk.red(`  • ${error}`)));
+        }
       }
+
+      // Show timing breakdown if available
+      this.showTimingBreakdown(results);
 
       return {
         success: successCount > 0,
@@ -214,6 +238,12 @@ export class PromptRunner {
     results: Map<string, EngineResponse>,
     errors: string[]
   ): Promise<void> {
+    if (this.config.debug) {
+      console.log(chalk.magenta(`🐛 Debug: Starting execution for engine: ${name}`));
+      console.log(chalk.gray(`   Model: ${engine.getConfig().model}`));
+      console.log(chalk.gray(`   Prompt length: ${request.prompt.length} chars`));
+    }
+
     const spinner = ora({
       text: `Running ${name}...`,
       color: 'cyan',
@@ -254,8 +284,21 @@ export class PromptRunner {
         if (response.error) {
           spinner.fail(chalk.red(`${name} failed: ${response.error}`));
           errors.push(`${name}: ${response.error}`);
+          
+          if (this.config.debug) {
+            console.log(chalk.magenta(`🐛 Debug: ${name} error details:`));
+            console.log(chalk.red(`   Error: ${response.error}`));
+            console.log(chalk.gray(`   Attempts made: ${attempts}`));
+          }
         } else {
           spinner.succeed(chalk.green(`${name} completed (${response.executionTime}ms)`));
+          
+          if (this.config.debug) {
+            console.log(chalk.magenta(`🐛 Debug: ${name} success details:`));
+            console.log(chalk.gray(`   Response length: ${response.content.length} chars`));
+            console.log(chalk.gray(`   Token usage: ${JSON.stringify(response.tokenUsage)}`));
+            console.log(chalk.gray(`   Model: ${response.model}`));
+          }
         }
 
         this.notifyProgress(name, 'completed', results.size, this.config.engines.size, response);
@@ -591,5 +634,43 @@ Multi-Shot Configuration:
    */
   getPerformanceTracker(): PerformanceTracker {
     return this.performanceTracker;
+  }
+
+  /**
+   * Create a visual progress bar for terminal display
+   */
+  private createProgressBar(percentage: number, width: number = 20): string {
+    const completed = Math.floor(percentage * width);
+    const remaining = width - completed;
+    const filledBar = chalk.green('█'.repeat(completed));
+    const emptyBar = chalk.gray('░'.repeat(remaining));
+    return `${filledBar}${emptyBar} ${(percentage * 100).toFixed(0)}%`;
+  }
+
+  /**
+   * Show timing breakdown for completed engines
+   */
+  private showTimingBreakdown(results: Map<string, EngineResponse>): void {
+    const timings: Array<{ name: string; time: number; success: boolean }> = [];
+    
+    for (const [name, response] of results.entries()) {
+      timings.push({
+        name,
+        time: response.executionTime,
+        success: !response.error
+      });
+    }
+
+    if (timings.length === 0) return;
+
+    // Sort by execution time
+    timings.sort((a, b) => a.time - b.time);
+
+    console.log(chalk.cyan('\n⏱️  Timing Breakdown:'));
+    timings.forEach(({ name, time, success }) => {
+      const status = success ? chalk.green('✓') : chalk.red('✗');
+      const timeStr = time > 10000 ? `${(time / 1000).toFixed(1)}s` : `${time}ms`;
+      console.log(`  ${status} ${name.padEnd(20)} ${chalk.gray(timeStr)}`);
+    });
   }
 }

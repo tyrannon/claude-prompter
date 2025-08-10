@@ -80,87 +80,129 @@ export class LocalEngine extends BaseEngine {
     content: string;
     tokenUsage?: { prompt: number; completion: number; total: number };
   }> {
-    const response = await fetch(`${this.localConfig.endpoint}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: this.config.model,
-        prompt: this.buildPrompt(request),
-        temperature: this.config.temperature,
-        options: {
-          num_predict: this.config.maxTokens,
-          temperature: this.config.temperature
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout || 60000);
+
+    try {
+      const response = await fetch(`${this.localConfig.endpoint}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        stream: false
-      })
-    });
+        body: JSON.stringify({
+          model: this.config.model,
+          prompt: this.buildPrompt(request),
+          temperature: this.config.temperature,
+          options: {
+            num_predict: this.config.maxTokens,
+            temperature: this.config.temperature
+          },
+          stream: false
+        }),
+        signal: controller.signal
+      });
 
-    if (!response.ok) {
-      throw new Error(`Ollama API error: ${response.status} - ${await response.text()}`);
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status} - ${await response.text()}`);
+      }
+
+      const data = await response.json() as any;
+      return {
+        content: data.response,
+        tokenUsage: data.prompt_eval_count && data.eval_count ? {
+          prompt: data.prompt_eval_count,
+          completion: data.eval_count,
+          total: data.prompt_eval_count + data.eval_count
+        } : undefined
+      };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${(this.config.timeout || 60000) / 1000}s - consider using a smaller model or increasing timeout`);
+      }
+      throw error;
     }
-
-    const data = await response.json() as any;
-    return {
-      content: data.response,
-      tokenUsage: data.prompt_eval_count && data.eval_count ? {
-        prompt: data.prompt_eval_count,
-        completion: data.eval_count,
-        total: data.prompt_eval_count + data.eval_count
-      } : undefined
-    };
   }
 
   private async callLlamaCpp(request: PromptRequest): Promise<{
     content: string;
   }> {
-    const response = await fetch(`${this.localConfig.endpoint}/completion`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt: this.buildPrompt(request),
-        temperature: this.config.temperature,
-        n_predict: this.config.maxTokens,
-        stop: ["</s>", "\n\nUser:", "\n\nAssistant:"]
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout || 60000);
 
-    if (!response.ok) {
-      throw new Error(`llama.cpp API error: ${response.status} - ${await response.text()}`);
+    try {
+      const response = await fetch(`${this.localConfig.endpoint}/completion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: this.buildPrompt(request),
+          temperature: this.config.temperature,
+          n_predict: this.config.maxTokens,
+          stop: ["</s>", "\n\nUser:", "\n\nAssistant:"]
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`llama.cpp API error: ${response.status} - ${await response.text()}`);
+      }
+
+      const data = await response.json() as any;
+      return {
+        content: data.content
+      };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${(this.config.timeout || 60000) / 1000}s - consider using a smaller model or increasing timeout`);
+      }
+      throw error;
     }
-
-    const data = await response.json() as any;
-    return {
-      content: data.content
-    };
   }
 
   private async callCustomEndpoint(request: PromptRequest): Promise<{
     content: string;
   }> {
-    const response = await fetch(this.localConfig.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt: this.buildPrompt(request),
-        temperature: this.config.temperature,
-        max_tokens: this.config.maxTokens
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout || 60000);
 
-    if (!response.ok) {
-      throw new Error(`Custom endpoint error: ${response.status} - ${await response.text()}`);
+    try {
+      const response = await fetch(this.localConfig.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: this.buildPrompt(request),
+          temperature: this.config.temperature,
+          max_tokens: this.config.maxTokens
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Custom endpoint error: ${response.status} - ${await response.text()}`);
+      }
+
+      const data = await response.json() as any;
+      return {
+        content: data.response || data.content || data.text
+      };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${(this.config.timeout || 60000) / 1000}s - consider using a smaller model or increasing timeout`);
+      }
+      throw error;
     }
-
-    const data = await response.json() as any;
-    return {
-      content: data.response || data.content || data.text
-    };
   }
 
   private buildPrompt(request: PromptRequest): string {

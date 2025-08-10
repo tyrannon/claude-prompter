@@ -46,6 +46,18 @@ export class OutputManager {
   }
 
   /**
+   * Sanitize branch name to be git-compatible
+   * Replaces invalid characters with safe alternatives
+   */
+  private sanitizeBranchName(name: string): string {
+    return name
+      .replace(/:/g, '-')           // Replace colons with hyphens
+      .replace(/[^a-zA-Z0-9\-_.]/g, '_')  // Replace other invalid chars with underscores
+      .replace(/^[\-_.]+|[\-_.]+$/g, '')  // Remove leading/trailing separators
+      .slice(0, 250);              // Limit length to prevent filesystem issues
+  }
+
+  /**
    * Initialize output management system
    */
   async initialize(): Promise<void> {
@@ -111,7 +123,8 @@ export class OutputManager {
     const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
 
     for (const [engineName, response] of result.results) {
-      const branchName = `${this.config.branchPrefix}-${result.runId}-${engineName}`;
+      const sanitizedEngineName = this.sanitizeBranchName(engineName);
+      const branchName = `${this.config.branchPrefix}-${result.runId}-${sanitizedEngineName}`;
       
       try {
         // Create and checkout new branch
@@ -129,7 +142,21 @@ export class OutputManager {
         
         console.log(`✓ Created branch: ${branchName}`);
       } catch (error) {
-        console.warn(`Failed to create branch ${branchName}:`, error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.warn(`⚠️  Failed to create git branch ${branchName}`);
+        
+        if (errorMsg.includes('already exists')) {
+          console.warn(`   Branch already exists - skipping git save for ${engineName}`);
+        } else if (errorMsg.includes('not a git repository')) {
+          console.warn(`   Not in git repository - results saved to folders only`);
+        } else if (errorMsg.includes('working tree')) {
+          console.warn(`   Git working tree has uncommitted changes - skipping branch creation`);
+        } else {
+          console.warn(`   Git error: ${errorMsg.split('\n')[0]}`);
+        }
+        
+        // Continue with multishot analysis regardless of git errors
+        console.warn(`   Continuing multishot analysis (results available in folders)...`);
       }
     }
 
@@ -137,7 +164,15 @@ export class OutputManager {
     try {
       execSync(`git checkout ${currentBranch}`, { stdio: 'ignore' });
     } catch (error) {
-      console.warn('Failed to return to original branch:', error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn(`⚠️  Failed to return to original branch: ${currentBranch}`);
+      
+      if (errorMsg.includes('did not match any file')) {
+        console.warn(`   Original branch no longer exists - staying on current branch`);
+      } else {
+        console.warn(`   Git checkout error: ${errorMsg.split('\n')[0]}`);
+        console.warn(`   You may need to manually checkout the correct branch`);
+      }
     }
   }
 

@@ -385,6 +385,76 @@ This tool is designed to:
 
 Use it whenever you feel the user would benefit from seeing their options laid out clearly!
 
+## 🔧 Cross-Project Usage & CLI Resolution (Updated: 2025-08-10)
+
+### 🐛 **MAJOR BUG FIXES IMPLEMENTED**
+
+**Issues Fixed:**
+1. **NL Interface Module Resolution**: Fixed `Cannot find module '/path/to/dist/cli.js'` errors when using from other project directories
+2. **Multishot Argument Corruption**: Fixed argument parsing that incorrectly injected natural language text into `--models` flag  
+3. **Cross-Directory Execution**: Resolved path resolution failures when running from projects like StyleMuse
+
+**Technical Improvements:**
+- ✅ **Intelligent CLI Resolution**: New `CLIResolver` utility with fallback logic
+- ✅ **Robust Argument Building**: New `ArgumentBuilder` with proper message sanitization
+- ✅ **Security Validation**: Command injection prevention and argument validation
+- ✅ **Environment Variable Support**: `CLAUDE_PROMPTER_BIN` for custom CLI paths
+- ✅ **Comprehensive Error Handling**: Helpful error messages with troubleshooting guidance
+
+### 🔍 **CLI Resolution Strategy**
+
+Claude-prompter now uses intelligent resolution with multiple fallback strategies:
+
+```bash
+# Resolution Priority Order:
+# 1. Local node_modules/.bin/claude-prompter (project dependency)
+# 2. Local dist/cli.js (development mode)
+# 3. CLAUDE_PROMPTER_BIN environment variable (custom path)
+# 4. npx -y claude-prompter (global package manager)
+# 5. Common global paths (~/.local/bin/claude-prompter-global, etc.)
+```
+
+### 🌍 **Environment Variable Configuration**
+
+You can now set a custom claude-prompter path for consistent cross-project usage:
+
+```bash
+# Add to your ~/.zshrc or ~/.bashrc
+export CLAUDE_PROMPTER_BIN="/Users/kaiyakramer/claude-prompter-standalone/dist/cli.js"
+
+# Or use the global wrapper
+export CLAUDE_PROMPTER_BIN="~/.local/bin/claude-prompter-global"
+
+# Or use npx (automatically detected)
+# No configuration needed - npx fallback works automatically
+```
+
+### 🛠️ **Multishot Argument Parsing - FIXED!**
+
+**Before (Broken):**
+```bash
+# This would create corrupted command:
+claude-prompter ask "analyze Duolingo-style streak tracker with freezes"
+# Generated: claude-prompter multishot -m "analyze..." --models streak freezes, gamification
+#                                                                ^^^^^^^^^^^^^^^^^^^^^^
+#                                                                Corrupted arguments!
+```
+
+**After (Fixed):**
+```bash
+# Now correctly generates:
+claude-prompter ask "analyze Duolingo-style streak tracker with freezes"
+# Generated: claude-prompter multishot -m "analyze Duolingo-style streak tracker with freezes" --compare
+#                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#                                                    Clean, properly quoted message!
+```
+
+### 🔒 **Security Enhancements**
+
+- **Argument Validation**: Prevents command injection attempts
+- **Message Sanitization**: Removes potential flag injections from natural language input
+- **Safe Execution**: Uses `spawn` with explicit argument arrays instead of shell strings
+
 ## 🔧 Cross-Project Usage (Updated: 2025-07-21)
 
 ### Problem Solved

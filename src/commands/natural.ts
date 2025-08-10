@@ -6,6 +6,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import boxen from 'boxen';
+import { CLIResolver } from '../utils/cliResolver.js';
+import { ArgumentBuilder } from '../utils/argumentBuilder.js';
 
 export interface ParsedIntent {
   command: string;
@@ -42,9 +44,9 @@ export class NaturalLanguageParser {
    */
   async parseIntent(input: string): Promise<ParsedIntent> {
     
-    // Intent patterns for different commands - now multishot-first!
+    // Intent patterns for different commands - prioritized by specificity!
     const intentPatterns = [
-      // Explicit single-model requests (opt-out patterns)
+      // Explicit single-model requests (opt-out patterns) - HIGHEST PRIORITY
       {
         command: 'suggest',
         patterns: [
@@ -61,30 +63,14 @@ export class NaturalLanguageParser {
         })
       },
       
-      // Multishot command (now default for most queries)
-      {
-        command: 'multishot',
-        patterns: [
-          /(?:compare|test|run)\s+(?:across|with|using)\s+(?:multiple\s+)?(?:models?|ai|engines?)/i,
-          /(?:multishot|multi[- ]?shot|multiple models?)\s*(?:with|for|on)?\s*(.+)/i,
-          /(?:analyze|compare)\s+(?:this|the)?\s*(.+?)\s*(?:with|using|across)\s+(?:different\s+)?(?:models?|ai)/i,
-          // Default multishot patterns - broader matches for general queries (only when multishot enabled)
-          this.config.defaultToMultishot ? /^(?!.*(?:quick|single|fast|simple)).*(?:help|how|what|explain|implement|create|build|show|tell).*$/i : /never_match_this_pattern_xyz123/
-        ],
-        extractParams: (_match: RegExpMatchArray, input: string) => ({
-          message: this.extractMessage(_match, input) || input.trim(),
-          models: this.extractModels(input),
-          compare: true
-        })
-      },
-      
-      // Usage/cost command
+      // Usage/cost command - HIGH PRIORITY (specific patterns)
       {
         command: 'usage',
         patterns: [
-          /(?:usage|cost|spending|tokens?|bills?|money)\s*(?:today|this month|monthly|daily)?/i,
-          /(?:how much|what.*cost|show me.*usage|check.*spending)/i,
-          /(?:api|openai)\s+(?:usage|cost|bill)/i
+          /^(?:show\s+(?:me\s+)?(?:my\s+)?)?(?:usage|cost|spending|tokens?|bills?|money)(?:\s+(?:today|this\s+month|monthly|daily))?$/i,
+          /^(?:how\s+much|what.*cost|check.*spending)(?:\s+(?:today|this\s+month|monthly|daily))?$/i,
+          /^(?:api|openai)\s+(?:usage|cost|bill)$/i,
+          /^(?:show\s+me\s+(?:my\s+)?usage)(?:\s+(?:today|this\s+month|monthly))?$/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           today: /today|daily/i.test(input),
@@ -92,14 +78,14 @@ export class NaturalLanguageParser {
           analyze: /analyz|detail|trend|breakdown/i.test(input)
         })
       },
-      
-      // Stats command
+
+      // Stats command - HIGH PRIORITY (specific patterns)
       {
         command: 'stats',
         patterns: [
-          /(?:stats|statistics|analytics|progress|learning|growth)/i,
-          /(?:show me|display)\s+(?:my\s+)?(?:progress|learning|stats|analytics)/i,
-          /(?:how am I|what.*progress|learning journey)/i
+          /^(?:stats|statistics|analytics|progress|learning|growth)$/i,
+          /^(?:show\s+me|display)\s+(?:my\s+)?(?:progress|learning|stats|analytics)$/i,
+          /^(?:how\s+am\s+I|what.*progress|learning\s+journey)$/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           detailed: /detail|comprehensive|full|complete/i.test(input),
@@ -107,13 +93,13 @@ export class NaturalLanguageParser {
         })
       },
 
-      // Patterns command
+      // Patterns command - HIGH PRIORITY (specific patterns)
       {
         command: 'patterns',
         patterns: [
-          /(?:patterns?|trends?|frequency|usage patterns?)/i,
-          /(?:show me|find|analyze)\s+(?:my\s+)?(?:patterns?|trends?|habits?)/i,
-          /(?:what.*patterns?|coding patterns?|language patterns?)/i
+          /^(?:patterns?|trends?|frequency|usage\s+patterns?)$/i,
+          /^(?:show\s+me|find|analyze)\s+(?:my\s+)?(?:patterns?|trends?|habits?)$/i,
+          /^(?:what.*patterns?|coding\s+patterns?|language\s+patterns?)$/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           type: this.extractPatternType(input),
@@ -121,14 +107,14 @@ export class NaturalLanguageParser {
         })
       },
 
-      // Analyze command
+      // Analyze command - HIGH PRIORITY (specific patterns)
       {
         command: 'analyze',
         patterns: [
-          /(?:analyze|review|examine|inspect)\s+(?:this\s+)?(?:project|file|code|changes)/i,
-          /(?:what.*analysis|show me.*analysis|check.*structure)/i,
-          /(?:analyze|review)\s+(?:recent|current|my)\s+(?:changes|files|work)/i,
-          /(?:project\s+context|file\s+analysis|code\s+analysis)/i
+          /^(?:analyze|review|examine|inspect)\s+(?:this\s+)?(?:project|file|code|changes)$/i,
+          /^(?:what.*analysis|show\s+me.*analysis|check.*structure)$/i,
+          /^(?:analyze|review)\s+(?:recent|current|my)\s+(?:changes|files|work)$/i,
+          /^(?:project\s+context|file\s+analysis|code\s+analysis)$/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           project: /project|context|structure|overview/i.test(input),
@@ -139,14 +125,14 @@ export class NaturalLanguageParser {
         })
       },
 
-      // Fix command  
+      // Fix command - HIGH PRIORITY (specific patterns)
       {
         command: 'fix',
         patterns: [
-          /(?:fix|repair|resolve|debug|troubleshoot)/i,
-          /(?:what.*wrong|error|issue|problem|bug)/i,
-          /(?:build.*fail|test.*fail|lint.*error|compilation.*error)/i,
-          /(?:help me debug|solve this|fix this)/i
+          /^(?:fix|repair|resolve|debug|troubleshoot)$/i,
+          /^(?:what.*wrong|error|issue|problem|bug)$/i,
+          /^(?:build.*fail|test.*fail|lint.*error|compilation.*error)$/i,
+          /^(?:help\s+me\s+debug|solve\s+this|fix\s+this)$/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           build: /build|compilation|compile/i.test(input),
@@ -160,14 +146,14 @@ export class NaturalLanguageParser {
         })
       },
 
-      // Memory command - higher priority patterns
+      // Memory command - HIGH PRIORITY (specific patterns)
       {
         command: 'memory',
         patterns: [
-          /(?:show|display|what)\s+(?:me\s+)?(?:my\s+)?(?:session\s+)?(?:memory|context|session|history|learning)/i,
-          /(?:my|show)\s+(?:learning\s+)?(?:patterns?|preferences|topics)/i,
-          /(?:what.*learned|show.*patterns|my.*context|session.*memory)/i,
-          /(?:memory|remember|context|history|session)(?:\s+(?:show|display|status))?/i
+          /^(?:show|display|what)\s+(?:me\s+)?(?:my\s+)?(?:session\s+)?(?:memory|context|session|history|learning)$/i,
+          /^(?:my|show)\s+(?:learning\s+)?(?:patterns?|preferences|topics)$/i,
+          /^(?:what.*learned|show.*patterns|my.*context|session.*memory)$/i,
+          /^(?:memory|remember|context|history|session)(?:\s+(?:show|display|status))?$/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           show: /show|display|what/i.test(input),
@@ -181,18 +167,46 @@ export class NaturalLanguageParser {
         })
       },
 
-      // Direct prompt
+      // Direct prompt command - HIGH PRIORITY (specific patterns)
       {
         command: 'prompt',
         patterns: [
-          /(?:send|execute|run)\s+(?:this\s+)?(?:prompt|message|question)/i,
-          /(?:ask|tell|prompt)\s+(?:gpt|ai|claude|the model)/i
+          /^(?:send|execute|run)\s+(?:this\s+)?(?:prompt|message|question)$/i,
+          /^(?:ask|tell|prompt)\s+(?:gpt|ai|claude|the\s+model)$/i
         ],
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           message: this.extractDirectPrompt(input),
           send: true
         })
-      }
+      },
+      
+      // Explicit multishot requests - MEDIUM PRIORITY
+      {
+        command: 'multishot',
+        patterns: [
+          /(?:compare|test|run)\s+(?:across|with|using)\s+(?:multiple\s+)?(?:models?|ai|engines?)/i,
+          /(?:multishot|multi[- ]?shot|multiple\s+models?)\s*(?:with|for|on)?\s*(.+)/i,
+          /(?:analyze|compare)\s+(?:this|the)?\s*(.+?)\s*(?:with|using|across)\s+(?:different\s+)?(?:models?|ai)/i
+        ],
+        extractParams: (_match: RegExpMatchArray, input: string) => ({
+          message: this.extractMessage(_match, input) || input.trim(),
+          models: this.extractModels(input),
+          compare: true
+        })
+      },
+      
+      // Fallback multishot for general queries - LOWEST PRIORITY (only if enabled)
+      ...(this.config.defaultToMultishot ? [{
+        command: 'multishot',
+        patterns: [
+          /^(?!.*(?:quick|single|fast|simple)).*(?:help|how|what|explain|implement|create|build|show|tell).*$/i
+        ],
+        extractParams: (_match: RegExpMatchArray, input: string) => ({
+          message: this.extractMessage(_match, input) || input.trim(),
+          models: this.extractModels(input),
+          compare: true
+        })
+      }] : [])
     ];
 
     // Try to match against patterns
@@ -234,26 +248,14 @@ export class NaturalLanguageParser {
     return topic.trim().replace(/^(?:for|about|with|on)\s+/, '');
   }
 
-  private extractMessage(match: RegExpMatchArray, input: string): string {
-    const messageMatch = match[1] || match[0];
-    if (messageMatch && messageMatch.trim()) {
-      return messageMatch.trim();
-    }
-    // Clean up command-specific keywords but preserve the core message
-    return input
-      .replace(/(?:compare|test|run|multishot|multi-shot).*?(?:with|using|across)\s+(?:models?|ai)/i, '')
-      .replace(/^(?:help|how|what|explain|implement|create|build|show|tell)\s+(?:me\s+)?/i, '')
-      .trim() || input.trim();
+  private extractMessage(_match: RegExpMatchArray, input: string): string {
+    // Use the new ArgumentBuilder to extract clean message
+    const detectedModels = ArgumentBuilder.parseModels(input);
+    return ArgumentBuilder.extractCleanMessage(input, detectedModels);
   }
 
-  private extractModels(input: string): string | undefined {
-    const modelMatch = input.match(/(?:models?|using|with)\s+([a-z0-9,-:\s]+)/i);
-    if (modelMatch) {
-      return modelMatch[1].trim();
-    }
-    
-    // Default to our optimal set if not specified
-    return undefined; // Let multishot use defaults
+  private extractModels(input: string): string[] | undefined {
+    return ArgumentBuilder.parseModels(input);
   }
 
   private extractComplexity(input: string): 'simple' | 'moderate' | 'complex' | undefined {
@@ -526,131 +528,71 @@ export function createNaturalCommand(): Command {
 }
 
 function buildCommand(intent: ParsedIntent): string {
-  const parts = [intent.command];
-  
-  switch (intent.command) {
-    case 'suggest':
-      if (intent.parameters.topic) {
-        parts.push('-t', `"${intent.parameters.topic}"`);
-      }
-      if (intent.parameters.showGrowth) {
-        parts.push('--show-growth');
-      }
-      if (intent.parameters.complexity) {
-        parts.push('--complexity', intent.parameters.complexity);
-      }
-      if (intent.parameters.language) {
-        parts.push('-l', intent.parameters.language);
-      }
-      if (intent.parameters.taskType) {
-        parts.push('--task-type', intent.parameters.taskType);
-      }
-      parts.push('--claude-analysis');
-      break;
-      
-    case 'multishot':
-      if (intent.parameters.message) {
-        parts.push('-m', `"${intent.parameters.message}"`);
-      }
-      if (intent.parameters.models) {
-        parts.push('--models', intent.parameters.models);
-      }
-      if (intent.parameters.compare) {
-        parts.push('--compare');
-      }
-      break;
-      
-    case 'usage':
-      if (intent.parameters.today) {
-        parts.push('--today');
-      } else if (intent.parameters.month) {
-        parts.push('--month');
-      }
-      if (intent.parameters.analyze) {
-        parts.push('--analyze');
-      }
-      break;
-      
-    case 'stats':
-      if (intent.parameters.detailed) {
-        parts.push('--detailed');
-      }
-      if (intent.parameters.project) {
-        parts.push('--project', intent.parameters.project);
-      }
-      break;
-      
-    case 'patterns':
-      if (intent.parameters.type) {
-        parts.push('--type', intent.parameters.type);
-      }
-      if (intent.parameters.minFrequency) {
-        parts.push('--min-frequency', String(intent.parameters.minFrequency));
-      }
-      break;
-      
-    case 'prompt':
-      if (intent.parameters.message) {
-        parts.push('-m', `"${intent.parameters.message}"`);
-      }
-      if (intent.parameters.send) {
-        parts.push('--send');
-      }
-      break;
-  }
-  
-  return parts.join(' ');
+  const args = ArgumentBuilder.buildCommandFromIntent(intent.command, intent.parameters);
+  return args.join(' ');
 }
 
 async function executeCommand(intent: ParsedIntent): Promise<void> {
-  // Import and execute the appropriate command
-  const { spawn } = await import("child_process");
-  const path = await import("path");
-  const { parse: parseShellArgs } = await import("shell-quote");
-  
-  return new Promise((resolve, reject) => {
+  try {
+    // Build command arguments using the new ArgumentBuilder
+    const args = ArgumentBuilder.buildCommandFromIntent(intent.command, intent.parameters);
+    
+    // Validate arguments for security
+    const validation = ArgumentBuilder.validateArguments(args);
+    if (!validation.valid) {
+      console.error(chalk.red('❌ Invalid command arguments:'));
+      validation.errors.forEach(error => console.error(chalk.gray(`  • ${error}`)));
+      throw new Error('Command validation failed');
+    }
+    
+    // Enhanced CLI resolution specifically for StyleMuse usage
+    console.log(chalk.gray('🔍 Resolving CLI for cross-directory usage...'));
+    
+    // Force use of current CLI path when called via wrapper
+    const isCalledViaWrapper = process.argv[1]?.includes('cli.js');
+    if (isCalledViaWrapper) {
+      const currentCli = process.argv[1];
+      console.log(chalk.green(`✅ Using current CLI: ${currentCli}`));
+      
+      // Use current CLI directly with spawn
+      const { spawn } = await import('child_process');
+      
+      return new Promise((resolve, reject) => {
+        const child = spawn('node', [currentCli, ...args], {
+          stdio: 'inherit',
+          shell: false
+        });
+        
+        child.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Command failed with exit code ${code}`));
+          }
+        });
+        
+        child.on('error', (error) => {
+          reject(error);
+        });
+      });
+    }
+    
+    // Fallback to CLIResolver for other cases
+    const exitCode = await CLIResolver.executeCommand(args);
+    
+    if (exitCode !== 0) {
+      throw new Error(`Command failed with exit code ${exitCode}`);
+    }
+  } catch (error) {
+    // Enhanced error handling with helpful suggestions
+    console.error(chalk.red('\n❌ Command execution failed:'));
+    console.error(chalk.gray(`  ${error instanceof Error ? error.message : String(error)}`));
+    
+    console.error(chalk.yellow('\n💡 Fallback options:'));
+    console.error(chalk.cyan('  Try traditional CLI syntax:'));
     const command = buildCommand(intent);
-    // Use shell-quote to properly parse quoted arguments
-    const parsedCommand = parseShellArgs(command) as string[];
-    const args = parsedCommand.slice(1); // Remove the command name    
-    // Try to find the correct path to cli.js
-    const possiblePaths = [
-      'dist/cli.js',  // Local execution
-      path.join(__dirname, '../../cli.js'), // Relative from build
-      path.join(__dirname, '../../../dist/cli.js'), // From global install
-      '/Users/kaiyakramer/claude-prompter-standalone/dist/cli.js' // Absolute fallback
-    ];
+    console.error(chalk.cyan(`  claude-prompter ${command}`));
     
-    let cliPath = possiblePaths[0];
-    
-    const child = spawn('node', [cliPath, intent.command, ...args], {
-      stdio: 'inherit',
-      shell: false // More secure than shell: true
-    });
-    
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        // Provide helpful error message with fallback suggestions
-        const error = new Error(`Command failed with exit code ${code}`);
-        console.error(chalk.yellow('\n💡 Troubleshooting Tips:'));
-        console.error(chalk.gray('  • Try the traditional syntax:'));
-        console.error(chalk.cyan(`    claude-prompter ${command}`));
-        console.error(chalk.gray('  • Use --dry-run to see what command would execute'));
-        console.error(chalk.gray('  • Check that claude-prompter is properly installed'));
-        reject(error);
-      }
-    });
-    
-    child.on('error', (error) => {
-      console.error(chalk.red('\n❌ Command Execution Error:'));
-      console.error(chalk.gray('  This might be a path or installation issue.'));
-      console.error(chalk.yellow('\n💡 Try these alternatives:'));
-      console.error(chalk.cyan(`  claude-prompter ${command}`));
-      console.error(chalk.gray('  or use the wrapper script:'));
-      console.error(chalk.cyan(`  ~/.local/bin/claude-prompter-global ${command}`));
-      reject(error);
-    });
-  });
+    throw error;
+  }
 }
