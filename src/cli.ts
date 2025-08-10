@@ -39,6 +39,10 @@ import { createMultishotCommand } from './commands/multishot';
 import { createAnalyticsCommand } from './commands/analytics';
 import { createABTestCommand } from './commands/abtest';
 import { createNaturalCommand } from './commands/natural';
+import { createAnalyzeCommand } from './commands/analyze';
+import { createFixCommand } from './commands/fix';
+import { createMemoryCommand } from './commands/memory';
+import { createReviewCommand, createDebugCommand, createOptimizeCommand, createStatusCommand } from './commands/shortcuts';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -428,6 +432,14 @@ program.addCommand(createMultishotCommand());
 program.addCommand(createAnalyticsCommand());
 program.addCommand(createABTestCommand());
 program.addCommand(createNaturalCommand());
+program.addCommand(createAnalyzeCommand());
+program.addCommand(createFixCommand());
+program.addCommand(createMemoryCommand());
+// Smart shortcuts for intuitive developer workflows
+program.addCommand(createReviewCommand());
+program.addCommand(createDebugCommand());
+program.addCommand(createOptimizeCommand());
+program.addCommand(createStatusCommand());
 
 program
   .command('capabilities')

@@ -1,0 +1,32 @@
+{
+  "runId": "me4y94yx-73zyh",
+  "timestamp": "2025-08-10T00:32:58.005Z",
+  "prompt": "optimize database queries for better performance",
+  "models": [
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 16508,
+      "tokenUsage": {
+        "promptTokens": 12,
+        "completionTokens": 786,
+        "totalTokens": 798
+      },
+      "cost": 0.0015840000000000001,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-10T00:32:57.904Z"
+    }
+  ],
+  "totalCost": 0.0015840000000000001,
+  "totalTime": 16624,
+  "successRate": 1,
+  "averageQualityScore": 7.5,
+  "taskComplexity": 4,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 120000,
+    "retries": 1
+  }
+}

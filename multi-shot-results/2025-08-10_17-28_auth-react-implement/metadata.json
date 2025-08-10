@@ -1,0 +1,21 @@
+{
+  "runId": "me4y3kju-fauun",
+  "timestamp": "2025-08-10T00:28:40.221Z",
+  "prompt": "help me implement React authentication with JWT tokens",
+  "engines": [
+    "gpt-5-mini",
+    "gpt-5-nano"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 2,
+    "errorCount": 0,
+    "totalExecutionTime": 32777
+  }
+}

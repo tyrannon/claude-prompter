@@ -2,9 +2,59 @@
 
 This document provides instructions for Claude (Anthropic's AI assistant) on how to use the claude-prompter tool to generate intelligent prompt suggestions and leverage the revolutionary Natural Language Interface.
 
-## 🚀 REVOLUTIONARY UPDATE: Natural Language Interface
+## 🚀 REVOLUTIONARY FEATURES: Advanced AI Development Companion
 
-**🗣️ You can now interact with claude-prompter using completely natural language!**
+**🧠 Claude-prompter is now the world's most advanced context-aware AI CLI assistant!**
+
+### ✅ **Revolutionary Smart Commands (StyleMuse-Inspired)**
+
+```bash
+# SMART DEVELOPMENT SHORTCUTS - One-command workflows!
+claude-prompter review --ai             # AI-powered code review with insights
+claude-prompter debug "error msg" --ai  # Intelligent debugging assistance  
+claude-prompter optimize --ai --suggest # Performance analysis & recommendations
+claude-prompter status --context --ai   # Project health with AI insights
+claude-prompter fix --auto              # Automatic error detection & fixes
+
+# ADVANCED SESSION MEMORY - Learns and grows with you!
+claude-prompter memory --show           # View learning journey & progress
+claude-prompter memory --patterns       # Your successful coding patterns
+claude-prompter memory --suggestions    # Personalized AI recommendations
+claude-prompter memory --context        # Conversation history for continuity
+
+# CONTEXT-AWARE PROJECT INTELLIGENCE - Understands your codebase!
+claude-prompter analyze --project --ai  # Full project analysis with insights
+claude-prompter analyze --changes --suggest # Smart analysis of recent changes
+claude-prompter analyze --file app.tsx --ai # Deep file analysis with patterns
+```
+
+### 👗 **STYLEMUSE INTEGRATION GUIDE - Perfect for Fashion Apps!**
+
+**Use these commands in StyleMuse for revolutionary React Native fashion development:**
+
+```bash
+# DAILY STYLEMUSE WORKFLOW
+claude-prompter status --ai --context         # Morning project health check
+claude-prompter review --ai --suggest         # Smart code review before commits
+claude-prompter debug "Metro error" --ai      # Intelligent React Native debugging
+claude-prompter optimize --ai                 # Fashion image & animation optimization
+
+# FASHION-SPECIFIC AI ANALYSIS  
+claude-prompter ask "optimize fashion image loading performance"
+claude-prompter ask "review React Native style system architecture"
+claude-prompter ask "analyze animation performance for fashion UX"
+claude-prompter ask "compare authentication patterns for fashion apps"
+
+# STYLEMUSE MEMORY & LEARNING
+claude-prompter memory --patterns             # See your React Native patterns
+claude-prompter memory --suggestions          # Fashion-specific recommendations
+claude-prompter memory --topics               # Track your fashion development topics
+
+# CONTEXT-AWARE STYLEMUSE ANALYSIS
+claude-prompter analyze --project --suggest   # Full StyleMuse project analysis
+claude-prompter analyze --changes --ai        # Smart analysis of recent fashion features
+claude-prompter fix --build --auto           # Auto-fix TypeScript & Metro issues
+```
 
 ### ✅ **Perfect Natural Language Commands for Claude:**
 

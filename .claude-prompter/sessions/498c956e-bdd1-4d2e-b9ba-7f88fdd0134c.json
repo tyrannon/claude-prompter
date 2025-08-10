@@ -1,0 +1,53 @@
+{
+  "sessionId": "498c956e-bdd1-4d2e-b9ba-7f88fdd0134c",
+  "created": "2025-08-10T07:07:51.533Z",
+  "lastAccessed": "2025-08-10T07:40:33.130Z",
+  "projectPath": "/Users/kaiyakramer/claude-prompter-standalone",
+  "projectContext": {
+    "type": "unknown",
+    "domain": "ecommerce",
+    "frameworks": [],
+    "languages": [],
+    "patterns": [],
+    "buildTools": [
+      "typescript"
+    ],
+    "testFrameworks": [
+      "jest"
+    ],
+    "styling": [],
+    "stateManagement": [],
+    "confidence": 2,
+    "workingDirectory": "/Users/kaiyakramer/claude-prompter-standalone",
+    "packageManager": "npm",
+    "hasGit": true,
+    "gitStatus": {
+      "branch": "main",
+      "hasUncommittedChanges": true,
+      "recentFiles": [
+        ".claude-prompter/metrics/me3bf4zj-zvult.json",
+        "multi-shot-results/run-me3bf4zj-zvult-2025-08-08T21-07-47-536Z/comparison.md",
+        "multi-shot-results/run-me3bf4zj-zvult-2025-08-08T21-07-47-536Z/gpt-5-mini-result.md",
+        "multi-shot-results/run-me3bf4zj-zvult-2025-08-08T21-07-47-536Z/gpt-5-nano-result.md",
+        "multi-shot-results/run-me3bf4zj-zvult-2025-08-08T21-07-47-536Z/gpt-5-result.md"
+      ]
+    }
+  },
+  "conversationHistory": [],
+  "persistentMemory": {
+    "userPreferences": {
+      "preferredComplexity": "moderate",
+      "preferredLanguages": [],
+      "preferredFrameworks": [],
+      "communicationStyle": "detailed",
+      "autoSuggest": true,
+      "rememberContext": true,
+      "maxContextHistory": 10
+    },
+    "learningPatterns": [],
+    "frequentTopics": [],
+    "codePatterns": []
+  },
+  "totalTokensUsed": 0,
+  "totalCost": 0
+}

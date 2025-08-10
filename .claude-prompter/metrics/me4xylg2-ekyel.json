@@ -1,0 +1,46 @@
+{
+  "runId": "me4xylg2-ekyel",
+  "timestamp": "2025-08-10T00:24:37.000Z",
+  "prompt": "Should we improve folder naming for AI results? Current: 'run-me4xc95c-j6aqe-2025-08-10T00-07-19-936Z'. Proposed: '2025-08-10_00-07_react-authentication-help'. Benefits: readability, sorting, topic identification. Concerns: file system compatibility, topic extraction accuracy.",
+  "models": [
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 4050,
+      "tokenUsage": {
+        "promptTokens": 70,
+        "completionTokens": 316,
+        "totalTokens": 386
+      },
+      "cost": 0.0007019999999999999,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-10T00:24:33.596Z"
+    },
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 7321,
+      "tokenUsage": {
+        "promptTokens": 70,
+        "completionTokens": 469,
+        "totalTokens": 539
+      },
+      "cost": 0.001008,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-10T00:24:36.865Z"
+    }
+  ],
+  "totalCost": 0.00171,
+  "totalTime": 7481,
+  "successRate": 1,
+  "averageQualityScore": 8,
+  "taskComplexity": 4,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 120000,
+    "retries": 1
+  }
+}

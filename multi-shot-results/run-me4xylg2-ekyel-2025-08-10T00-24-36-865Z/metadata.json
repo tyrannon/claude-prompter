@@ -1,0 +1,21 @@
+{
+  "runId": "me4xylg2-ekyel",
+  "timestamp": "2025-08-10T00:24:36.865Z",
+  "prompt": "Should we improve folder naming for AI results? Current: 'run-me4xc95c-j6aqe-2025-08-10T00-07-19-936Z'. Proposed: '2025-08-10_00-07_react-authentication-help'. Benefits: readability, sorting, topic identification. Concerns: file system compatibility, topic extraction accuracy.",
+  "engines": [
+    "gpt-5-mini",
+    "gpt-5-nano"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 2,
+    "successCount": 2,
+    "errorCount": 0,
+    "totalExecutionTime": 11371
+  }
+}

@@ -47,6 +47,7 @@
     "node-fetch": "^3.3.2",
     "open": "^10.2.0",
     "ora": "^7.0.1",
+    "shell-quote": "^1.8.3",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "uuid": "^11.1.0"
@@ -54,6 +55,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.10.5",
+    "@types/shell-quote": "^1.7.5",
     "@types/supertest": "^6.0.3",
     "jest": "^29.7.0",
     "supertest": "^7.1.3",

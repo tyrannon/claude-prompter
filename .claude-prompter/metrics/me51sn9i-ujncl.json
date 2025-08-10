@@ -1,0 +1,74 @@
+{
+  "runId": "me51sn9i-ujncl",
+  "timestamp": "2025-08-10T02:12:10.319Z",
+  "prompt": "\"design",
+  "models": [
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 1441,
+      "tokenUsage": {
+        "promptTokens": 2,
+        "completionTokens": 68,
+        "totalTokens": 70
+      },
+      "cost": 0.00013800000000000002,
+      "qualityScore": 7,
+      "success": true,
+      "timestamp": "2025-08-10T02:11:52.039Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 1671,
+      "tokenUsage": {
+        "promptTokens": 2,
+        "completionTokens": 63,
+        "totalTokens": 65
+      },
+      "cost": 0.000128,
+      "qualityScore": 7,
+      "success": true,
+      "timestamp": "2025-08-10T02:11:52.267Z"
+    },
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 2082,
+      "tokenUsage": {
+        "promptTokens": 2,
+        "completionTokens": 46,
+        "totalTokens": 48
+      },
+      "cost": 0.000094,
+      "qualityScore": 7,
+      "success": true,
+      "timestamp": "2025-08-10T02:11:52.680Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 19520,
+      "tokenUsage": {
+        "promptTokens": 10,
+        "completionTokens": 288,
+        "totalTokens": 298
+      },
+      "cost": 0.000586,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-10T02:12:10.119Z"
+    }
+  ],
+  "totalCost": 0.000946,
+  "totalTime": 19758,
+  "successRate": 1,
+  "averageQualityScore": 7.25,
+  "taskComplexity": 4,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 120000,
+    "retries": 1
+  }
+}

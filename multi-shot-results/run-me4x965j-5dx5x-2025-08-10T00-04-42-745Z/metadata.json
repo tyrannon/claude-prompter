@@ -1,0 +1,18 @@
+{
+  "runId": "me4x965j-5dx5x",
+  "timestamp": "2025-08-10T00:04:42.745Z",
+  "prompt": "\"results?",
+  "engines": [],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 0,
+    "successCount": 0,
+    "errorCount": 0,
+    "totalExecutionTime": 0
+  }
+}

@@ -24,7 +24,7 @@ export interface NLIConfig {
 
 export class NaturalLanguageParser {
   private config: NLIConfig = {
-    enabledCommands: ['suggest', 'multishot', 'usage', 'stats', 'patterns', 'prompt'],
+    enabledCommands: ['suggest', 'multishot', 'usage', 'stats', 'patterns', 'prompt', 'analyze', 'fix', 'memory'],
     confidenceThreshold: 0.7,
     maxRetries: 2,
     defaultToMultishot: true, // REVOLUTIONARY: Multishot intelligence by default!
@@ -118,6 +118,66 @@ export class NaturalLanguageParser {
         extractParams: (_match: RegExpMatchArray, input: string) => ({
           type: this.extractPatternType(input),
           minFrequency: this.extractMinFrequency(input)
+        })
+      },
+
+      // Analyze command
+      {
+        command: 'analyze',
+        patterns: [
+          /(?:analyze|review|examine|inspect)\s+(?:this\s+)?(?:project|file|code|changes)/i,
+          /(?:what.*analysis|show me.*analysis|check.*structure)/i,
+          /(?:analyze|review)\s+(?:recent|current|my)\s+(?:changes|files|work)/i,
+          /(?:project\s+context|file\s+analysis|code\s+analysis)/i
+        ],
+        extractParams: (_match: RegExpMatchArray, input: string) => ({
+          project: /project|context|structure|overview/i.test(input),
+          file: this.extractFileName(input),
+          changes: /changes?|recent|modified|diff/i.test(input),
+          suggest: /suggest|recommend|improve/i.test(input),
+          ai: /ai|smart|intelligent|advanced/i.test(input)
+        })
+      },
+
+      // Fix command  
+      {
+        command: 'fix',
+        patterns: [
+          /(?:fix|repair|resolve|debug|troubleshoot)/i,
+          /(?:what.*wrong|error|issue|problem|bug)/i,
+          /(?:build.*fail|test.*fail|lint.*error|compilation.*error)/i,
+          /(?:help me debug|solve this|fix this)/i
+        ],
+        extractParams: (_match: RegExpMatchArray, input: string) => ({
+          build: /build|compilation|compile/i.test(input),
+          lint: /lint|format|style|prettier|eslint/i.test(input),
+          test: /test|testing|spec/i.test(input),
+          git: /git|commit|merge|branch/i.test(input),
+          all: /all|everything|everything/i.test(input),
+          error: this.extractErrorMessage(input),
+          ai: /ai|smart|intelligent|help|suggest/i.test(input),
+          auto: /auto|automatic|automatically/i.test(input)
+        })
+      },
+
+      // Memory command - higher priority patterns
+      {
+        command: 'memory',
+        patterns: [
+          /(?:show|display|what)\s+(?:me\s+)?(?:my\s+)?(?:session\s+)?(?:memory|context|session|history|learning)/i,
+          /(?:my|show)\s+(?:learning\s+)?(?:patterns?|preferences|topics)/i,
+          /(?:what.*learned|show.*patterns|my.*context|session.*memory)/i,
+          /(?:memory|remember|context|history|session)(?:\s+(?:show|display|status))?/i
+        ],
+        extractParams: (_match: RegExpMatchArray, input: string) => ({
+          show: /show|display|what/i.test(input),
+          context: /context|conversation|history/i.test(input),
+          patterns: /patterns?|learned|learning/i.test(input),
+          topics: /topics?|subjects?/i.test(input),
+          preferences: /preferences|settings|config/i.test(input),
+          suggestions: /suggest|recommend|ideas/i.test(input),
+          stats: /stats|statistics|analytics/i.test(input),
+          clear: /clear|reset|delete/i.test(input)
         })
       },
 
@@ -245,6 +305,26 @@ export class NaturalLanguageParser {
 
   private extractDirectPrompt(input: string): string {
     return input.replace(/^(?:send|execute|run|ask|tell|prompt)\s+(?:this\s+)?(?:prompt|message|question|gpt|ai|claude|the model):?\s*/i, '');
+  }
+
+  private extractFileName(input: string): string | undefined {
+    // Look for file references like "analyze file.ts" or "check src/components/App.tsx"
+    const fileMatch = input.match(/(?:file|this|the)\s+([a-zA-Z0-9._\/-]+\.[a-zA-Z0-9]+)/i);
+    if (fileMatch) return fileMatch[1];
+    
+    // Look for bare file paths
+    const pathMatch = input.match(/\b([a-zA-Z0-9._\/-]+\.[a-zA-Z0-9]{2,5})\b/);
+    return pathMatch ? pathMatch[1] : undefined;
+  }
+
+  private extractErrorMessage(input: string): string | undefined {
+    // Look for quoted error messages
+    const quotedMatch = input.match(/["'](.*?)["']/);
+    if (quotedMatch) return quotedMatch[1];
+    
+    // Look for error patterns after keywords
+    const errorMatch = input.match(/(?:error|issue|problem|fail)(?:ed)?:?\s*(.+)/i);
+    return errorMatch ? errorMatch[1].trim() : undefined;
   }
 
   private calculateConfidence(_match: RegExpMatchArray, command: string, input: string): number {
@@ -524,13 +604,15 @@ function buildCommand(intent: ParsedIntent): string {
 
 async function executeCommand(intent: ParsedIntent): Promise<void> {
   // Import and execute the appropriate command
-  const { spawn } = await import('child_process');
-  const path = await import('path');
+  const { spawn } = await import("child_process");
+  const path = await import("path");
+  const { parse: parseShellArgs } = await import("shell-quote");
   
   return new Promise((resolve, reject) => {
     const command = buildCommand(intent);
-    const args = command.split(' ').slice(1); // Remove the command name
-    
+    // Use shell-quote to properly parse quoted arguments
+    const parsedCommand = parseShellArgs(command) as string[];
+    const args = parsedCommand.slice(1); // Remove the command name    
     // Try to find the correct path to cli.js
     const possiblePaths = [
       'dist/cli.js',  // Local execution
