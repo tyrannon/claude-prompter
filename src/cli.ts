@@ -43,6 +43,9 @@ import { createAnalyzeCommand } from './commands/analyze';
 import { createFixCommand } from './commands/fix';
 import { createMemoryCommand } from './commands/memory';
 import { createReviewCommand, createDebugCommand, createOptimizeCommand, createStatusCommand } from './commands/shortcuts';
+import { createRiskCommand } from './commands/risk';
+import { SafetyWrapper } from './services/SafetyWrapper';
+import { RiskAssessmentEngine } from './services/RiskAssessmentEngine';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -206,6 +209,8 @@ program
   .option('--sessions <number>', 'Number of recent sessions to analyze for learning', '10')
   .option('--subagent-chains', 'Generate Claude Code subagent workflow chain suggestions')
   .option('--personality <mode>', 'Personality mode: default, allmight, formal, casual', 'default')
+  .option('--safe-mode', 'Enable safe mode for conservative suggestions')
+  .option('--allow-high-risk', 'Allow high-risk suggestions (use with caution)')
   .action(async (options) => {
     if (!options.topic) {
       console.error(formatError('Topic is required. Use -t or --topic to specify.'));
@@ -216,6 +221,21 @@ program
     setPersonality(options.personality as PersonalityMode);
     
     try {
+      const safetyWrapper = new SafetyWrapper();
+      const riskEngine = new RiskAssessmentEngine();
+      
+      // Set safe mode if enabled
+      if (options.safeMode) {
+        safetyWrapper.setSafeMode(true);
+        console.log(chalk.blue('🛡️ Safe mode enabled - conservative suggestions only\n'));
+      }
+      
+      // Detect platform for safety checks
+      const platform = riskEngine.detectPlatform();
+      if (platform) {
+        console.log(chalk.cyan(`Detected platform: ${platform}\n`));
+      }
+      
       let suggestions;
       let learningContext: LearningContext | undefined;
       
@@ -346,13 +366,58 @@ program
         suggestions = generatePromptSuggestions(context);
       }
       
+      // Apply safety wrapper to suggestions if in safe mode or if high-risk detected
+      let safetySuggestions = [];
+      let hasHighRiskSuggestions = false;
+      
+      if (options.safeMode || platform) {
+        safetySuggestions = suggestions.map((suggestion: string) => {
+          const wrapped = safetyWrapper.wrapSuggestion(suggestion, {
+            safeMode: options.safeMode,
+            platform,
+            allowHighRisk: options.allowHighRisk
+          });
+          
+          if (wrapped.riskAssessment.level === 'HIGH' || wrapped.riskAssessment.level === 'CRITICAL') {
+            hasHighRiskSuggestions = true;
+          }
+          
+          // Add confidence and risk indicators to suggestion
+          let enhancedSuggestion = suggestion;
+          if (wrapped.confidence < 50) {
+            enhancedSuggestion = `[⚠️ Low Confidence ${wrapped.confidence}%] ${suggestion}`;
+          } else if (wrapped.confidence < 80) {
+            enhancedSuggestion = `[Medium Confidence ${wrapped.confidence}%] ${suggestion}`;
+          }
+          
+          if (wrapped.blocked) {
+            enhancedSuggestion = `[🚫 BLOCKED - ${wrapped.blockReason}] ${suggestion}`;
+          } else if (wrapped.riskAssessment.level === 'CRITICAL') {
+            enhancedSuggestion = `[⛔ CRITICAL RISK] ${suggestion}`;
+          } else if (wrapped.riskAssessment.level === 'HIGH') {
+            enhancedSuggestion = `[🔴 HIGH RISK] ${suggestion}`;
+          }
+          
+          return enhancedSuggestion;
+        });
+      } else {
+        safetySuggestions = suggestions;
+      }
+      
       // Display growth information if available
       let output = '';
       if (learningContext) {
         output += formatGrowthInfo(learningContext);
       }
       
-      output += formatSuggestionsForCLI(suggestions);
+      // Show safety warnings if high-risk suggestions detected
+      if (hasHighRiskSuggestions && !options.allowHighRisk) {
+        output += chalk.yellow('\n⚠️ HIGH RISK SUGGESTIONS DETECTED\n');
+        output += chalk.gray('Some suggestions involve risky operations.\n');
+        output += chalk.gray('Use --allow-high-risk to see them, or --safe-mode for conservative alternatives.\n\n');
+      }
+      
+      output += formatSuggestionsForCLI(safetySuggestions);
       
       // Personality-aware title
       let title;
@@ -440,6 +505,8 @@ program.addCommand(createReviewCommand());
 program.addCommand(createDebugCommand());
 program.addCommand(createOptimizeCommand());
 program.addCommand(createStatusCommand());
+// Safety commands
+program.addCommand(createRiskCommand());
 
 program
   .command('capabilities')

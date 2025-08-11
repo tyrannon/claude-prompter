@@ -6,6 +6,8 @@ import { execSync } from 'child_process';
 import { ProjectAnalyzer, ProjectContext } from '../services/ProjectAnalyzer';
 import { SessionContextManager } from '../services/SessionContextManager';
 import { callOpenAI } from '../utils/openaiClient';
+import { RiskAssessmentEngine } from '../services/RiskAssessmentEngine';
+import { SafetyWrapper } from '../services/SafetyWrapper';
 
 interface ShortcutOptions {
   ai?: boolean;
@@ -274,7 +276,7 @@ async function executeSmartOptimize(options: ShortcutOptions): Promise<void> {
 }
 
 /**
- * Execute smart status functionality
+ * Execute smart status functionality with safety features
  */
 async function executeSmartStatus(options: ShortcutOptions): Promise<void> {
   const spinner = ora('📊 Gathering comprehensive project status...').start();
@@ -282,11 +284,51 @@ async function executeSmartStatus(options: ShortcutOptions): Promise<void> {
   try {
     const analyzer = new ProjectAnalyzer();
     const contextManager = new SessionContextManager();
+    const riskEngine = new RiskAssessmentEngine();
+    const safetyWrapper = new SafetyWrapper();
     
     // Get comprehensive project analysis
     const projectContext = await analyzer.analyzeProject();
     const workingFiles = await analyzer.getCurrentWorkingFiles();
     const recentFiles = await analyzer.getRecentChangedFiles(5);
+    
+    // Detect platform for safety checks
+    const platform = riskEngine.detectPlatform();
+    
+    // Check for recent errors and failures
+    let errorStatus = {
+      recentErrors: 0,
+      shouldRollback: false,
+      rollbackReason: ''
+    };
+    
+    // Analyze recent git commits for failures
+    try {
+      const recentCommits = execSync('git log --oneline -5 2>/dev/null', { encoding: 'utf-8' });
+      const failureKeywords = ['fix', 'revert', 'rollback', 'broken', 'error', 'fail'];
+      const commitLines = recentCommits.split('\n').filter(Boolean);
+      const failureCommits = commitLines.filter(line => 
+        failureKeywords.some(keyword => line.toLowerCase().includes(keyword))
+      );
+      
+      if (failureCommits.length >= 3) {
+        errorStatus.recentErrors = failureCommits.length;
+        errorStatus.shouldRollback = true;
+        errorStatus.rollbackReason = 'Multiple failure-related commits detected';
+      }
+    } catch (gitError) {
+      // Git command failed, skip error analysis
+    }
+    
+    // Check for uncommitted risky changes
+    const riskyChanges: string[] = [];
+    const allChangedFiles = [...workingFiles.staged, ...workingFiles.modified];
+    for (const file of allChangedFiles) {
+      const assessment = riskEngine.assessRisk(`modify ${file}`, { platform });
+      if (assessment.level === 'CRITICAL' || assessment.level === 'HIGH') {
+        riskyChanges.push(`${file} (${assessment.level})`);
+      }
+    }
     
     // Get session context if available
     let sessionSummary = null;
@@ -302,12 +344,41 @@ async function executeSmartStatus(options: ShortcutOptions): Promise<void> {
     spinner.succeed('Project status analysis complete!');
     
     if (options.json) {
-      console.log(JSON.stringify({ projectContext, workingFiles, recentFiles, sessionSummary }, null, 2));
+      console.log(JSON.stringify({ 
+        projectContext, 
+        workingFiles, 
+        recentFiles, 
+        sessionSummary,
+        safetyStatus: {
+          platform,
+          errorStatus,
+          riskyChanges
+        }
+      }, null, 2));
       return;
     }
     
-    // Display comprehensive status
-    displayProjectStatus(projectContext, workingFiles, recentFiles, sessionSummary, options.verbose);
+    // Display comprehensive status with safety info
+    displayProjectStatusWithSafety(
+      projectContext, 
+      workingFiles, 
+      recentFiles, 
+      sessionSummary, 
+      {
+        platform,
+        errorStatus,
+        riskyChanges
+      },
+      options.verbose
+    );
+    
+    // Display safety status
+    console.log(safetyWrapper.getSessionStatus());
+    
+    // Show rollback recommendation if needed
+    if (errorStatus.shouldRollback || riskEngine.shouldSuggestRollback()) {
+      displayRollbackRecommendation(errorStatus.rollbackReason);
+    }
     
     if (options.ai) {
       await generateAIProjectInsights(projectContext);
@@ -450,57 +521,7 @@ function displayOptimizationResults(optimizations: any[], verbose: boolean = fal
   }));
 }
 
-function displayProjectStatus(
-  projectContext: ProjectContext,
-  workingFiles: any,
-  recentFiles: string[],
-  sessionSummary: any,
-  verbose: boolean = false
-): void {
-  const healthScore = calculateProjectHealth(projectContext, workingFiles);
-  
-  const content = [
-    chalk.cyan.bold('📊 Smart Project Status'),
-    '',
-    chalk.yellow('Project Health:'),
-    `  Overall Score: ${healthScore}% ${getHealthEmoji(healthScore)}`,
-    `  Type: ${projectContext.type}`,
-    `  Confidence: ${projectContext.confidence}%`,
-    '',
-    chalk.yellow('Activity Summary:'),
-    `  Staged Changes: ${workingFiles.staged.length}`,
-    `  Recent Files: ${recentFiles.length}`,
-    `  Git Branch: ${projectContext.gitStatus?.branch || 'unknown'}`,
-    ''
-  ];
-  
-  if (sessionSummary) {
-    content.push(
-      chalk.yellow('Session Context:'),
-      `  Conversations: ${sessionSummary.conversations}`,
-      `  Learning Patterns: ${sessionSummary.learningPatterns}`,
-      `  Last Active: ${sessionSummary.lastActive?.toLocaleString() || 'Never'}`,
-      ''
-    );
-  }
-  
-  if (verbose) {
-    content.push(
-      chalk.cyan('Technology Stack:'),
-      `  Frameworks: ${projectContext.frameworks.join(', ') || 'None detected'}`,
-      `  Build Tools: ${projectContext.buildTools.join(', ') || 'None detected'}`,
-      `  Test Frameworks: ${projectContext.testFrameworks.join(', ') || 'None detected'}`
-    );
-  }
-  
-  console.log(boxen(content.join('\n'), {
-    title: '📈 Project Overview',
-    titleAlignment: 'center',
-    padding: 1,
-    borderColor: healthScore > 80 ? 'green' : healthScore > 60 ? 'yellow' : 'red',
-    borderStyle: 'round'
-  }));
-}
+// Old displayProjectStatus function removed - using displayProjectStatusWithSafety for safety-enhanced status
 
 // AI-powered analysis functions
 async function generateAIReviewInsights(projectContext: ProjectContext, fileAnalyses: any[]): Promise<void> {
@@ -904,4 +925,121 @@ async function generateStatusSuggestions(projectContext: ProjectContext, working
       borderStyle: 'round'
     }));
   }
+}
+
+// New safety-enhanced display functions
+function displayProjectStatusWithSafety(
+  projectContext: ProjectContext,
+  workingFiles: any,
+  recentFiles: string[],
+  sessionSummary: any,
+  safetyInfo: {
+    platform?: string;
+    errorStatus: {
+      recentErrors: number;
+      shouldRollback: boolean;
+      rollbackReason: string;
+    };
+    riskyChanges: string[];
+  },
+  _verbose: boolean = false
+): void {
+  const healthScore = calculateProjectHealth(projectContext, workingFiles);
+  
+  const content = [
+    chalk.cyan.bold('📊 Smart Project Status with Safety Analysis'),
+    '',
+    chalk.yellow('Project Health:'),
+    `  Overall Score: ${healthScore}% ${getHealthEmoji(healthScore)}`,
+    `  Type: ${projectContext.type}`,
+    `  Confidence: ${projectContext.confidence}%`,
+  ];
+  
+  if (safetyInfo.platform) {
+    content.push(`  Platform: ${chalk.cyan(safetyInfo.platform)}`);
+  }
+  
+  content.push(
+    '',
+    chalk.yellow('Activity Summary:'),
+    `  Staged Changes: ${workingFiles.staged.length}`,
+    `  Recent Files: ${recentFiles.length}`,
+    `  Git Branch: ${projectContext.gitStatus?.branch || 'unknown'}`
+  );
+  
+  // Add safety warnings
+  if (safetyInfo.errorStatus.recentErrors > 0) {
+    content.push(
+      '',
+      chalk.red('⚠️ Error Status:'),
+      `  Recent Errors: ${safetyInfo.errorStatus.recentErrors}`,
+      `  Rollback Recommended: ${safetyInfo.errorStatus.shouldRollback ? chalk.red('YES') : chalk.green('NO')}`
+    );
+  }
+  
+  if (safetyInfo.riskyChanges.length > 0) {
+    content.push(
+      '',
+      chalk.yellow('🔴 Risky Changes Detected:')
+    );
+    safetyInfo.riskyChanges.slice(0, 5).forEach(change => {
+      content.push(`  • ${change}`);
+    });
+    content.push(chalk.gray('  Run: claude-prompter risk <file> for detailed analysis'));
+  }
+  
+  if (sessionSummary) {
+    content.push(
+      '',
+      chalk.yellow('Session Context:'),
+      `  Conversations: ${sessionSummary.conversations}`,
+      `  Learning Patterns: ${sessionSummary.learningPatterns}`
+    );
+  }
+  
+  const borderColor = safetyInfo.errorStatus.shouldRollback ? 'red' : 
+                     safetyInfo.riskyChanges.length > 0 ? 'yellow' : 
+                     healthScore > 80 ? 'green' : 'cyan';
+  
+  console.log(boxen(content.join('\n'), {
+    title: '📋 Project Status',
+    titleAlignment: 'center',
+    padding: 1,
+    borderColor,
+    borderStyle: 'round'
+  }));
+}
+
+function displayRollbackRecommendation(reason: string): void {
+  const content = [
+    chalk.red.bold('🛑 ROLLBACK RECOMMENDED'),
+    '',
+    chalk.yellow('Reason:'),
+    `  ${reason || 'Multiple failures detected'}`,
+    '',
+    chalk.cyan('Recommended Actions:'),
+    '  1. Save any important uncommitted work',
+    '  2. Create a checkpoint: git tag BEFORE-ROLLBACK',
+    '  3. Rollback to last stable state:',
+    chalk.gray('     git reset --hard HEAD~1'),
+    chalk.gray('     # or to specific commit:'),
+    chalk.gray('     git reset --hard <commit-hash>'),
+    '  4. Clean install dependencies:',
+    chalk.gray('     npm install'),
+    '  5. Clear caches if needed:',
+    chalk.gray('     npx expo start --clear'),
+    '',
+    chalk.yellow('Alternative Approach:'),
+    '  • Consider a different implementation strategy',
+    '  • Break down the task into smaller steps',
+    '  • Use incremental mode: claude-prompter risk <operation> --incremental'
+  ];
+  
+  console.log(boxen(content.join('\n'), {
+    title: '⚠️ Rollback Advisor',
+    titleAlignment: 'center',
+    padding: 1,
+    borderColor: 'red',
+    borderStyle: 'double'
+  }));
 }

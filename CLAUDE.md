@@ -1,6 +1,6 @@
 # Claude Integration Guide for claude-prompter
 
-This document provides instructions for Claude (Anthropic's AI assistant) on how to use the claude-prompter tool to generate intelligent prompt suggestions and leverage the revolutionary Natural Language Interface.
+This document provides instructions for Claude (Anthropic's AI assistant) on how to use the claude-prompter tool to generate intelligent prompt suggestions, leverage the revolutionary Natural Language Interface, and utilize enterprise safety features to prevent dangerous changes.
 
 ## 🚀 REVOLUTIONARY FEATURES: Advanced AI Development Companion
 
@@ -86,6 +86,38 @@ claude-prompter ask "analyze my React development trends"
 - **🚀 Zero Learning Curve**: No more complex CLI syntax memorization required
 - **🤖 Perfect Claude Integration**: Designed specifically for AI assistant usage
 
+## 🛡️ CRITICAL SAFETY FEATURES (USE THESE FIRST!)
+
+**IMPORTANT**: Following production incidents, claude-prompter now includes safety features that MUST be used before suggesting dangerous changes:
+
+### 🚨 Before ANY Configuration Changes
+```bash
+# ALWAYS check risk first
+claude-prompter risk "modify babel.config.js"
+claude-prompter risk "update package.json"
+claude-prompter risk "change tsconfig.json"
+```
+
+### 📋 For Complex Tasks
+```bash
+# Force incremental mode for safety
+claude-prompter risk "add authentication" --incremental
+```
+
+### 🔄 After Errors
+```bash
+# Check if rollback is needed
+claude-prompter status
+```
+
+### 🎯 Platform-Specific Protection
+```bash
+# Detect platform for safety rules
+claude-prompter risk detect-platform
+```
+
+**As Claude, you should ALWAYS suggest using these safety commands before making risky changes!**
+
 ## 🤖 Overview
 
 The claude-prompter tool is specifically designed with Claude integration in mind. As Claude, you can invoke this tool to:
@@ -94,6 +126,9 @@ The claude-prompter tool is specifically designed with Claude integration in min
 - Guide productive conversations
 - Compare insights across multiple AI models (GPT-5, GPT-5-mini, GPT-5-nano, qwen3)
 - Leverage natural language commands for seamless interaction
+- **Assess risk before dangerous operations** (NEW!)
+- **Enforce safety checkpoints** (NEW!)
+- **Suggest rollback when needed** (NEW!)
 
 ## 🎯 When to Use This Tool
 
